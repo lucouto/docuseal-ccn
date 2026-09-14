@@ -41,8 +41,8 @@ describe Ccn::ManageAccountConfigs do
   end
 
   it 'stores objects with known members only, coercing true/false and dropping blanks' do
-    result = described_class.set(account, 'submitter_documents_copy_email',
-                                 { 'subject' => 'Copie', 'body' => '', 'attach_documents' => 'true', 'enabled' => false })
+    value = { 'subject' => 'Copie', 'body' => '', 'attach_documents' => 'true', 'enabled' => false }
+    result = described_class.set(account, 'submitter_documents_copy_email', value)
 
     expect(result['value']).to eq('subject' => 'Copie', 'attach_documents' => true, 'enabled' => false)
     expect(result['default']).to include('subject', 'body')

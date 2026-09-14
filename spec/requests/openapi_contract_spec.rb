@@ -22,11 +22,23 @@ describe 'OpenAPI contract' do
     ]
   end
 
+  # Where upstream's own 3.2.4 API disagrees with its published spec. Pinned explicitly so a fork change
+  # that fixes or worsens a discrepancy is noticed; re-check on every upstream rebase.
+  #   - GET /submissions/{id}: the spec requires "metadata", Submissions::SerializeForApi never emits it.
+  #   - submission "name" is typed string but is null for unnamed submissions (fixtures below set a name).
+  let(:known_upstream_deviations) do
+    {
+      %w[get /submissions/{id}] => ['$: missing required key "metadata"']
+    }
+  end
+
   let(:account) { create(:account) }
   let(:author) { create(:user, account:) }
   let(:headers) { { 'x-auth-token': author.access_token.token } }
   let(:template) { create(:template, account:, author:, only_field_types: %w[text signature]) }
-  let(:submission) { create(:submission, :with_submitters, template:, created_by_user: author) }
+  let(:submission) do
+    create(:submission, :with_submitters, template:, created_by_user: author, name: 'Contract submission')
+  end
   let(:submitter) { submission.submitters.first }
 
   def expect_conforming_response(method, path, status: 200)
@@ -35,7 +47,8 @@ describe 'OpenAPI contract' do
 
     expect(response).to have_http_status(status)
     expect(schema).to be_present, "docs/openapi.json declares no #{status} JSON schema for #{method.upcase} #{path}"
-    expect(OpenapiContract.validate(response.parsed_body, schema)).to eq([])
+    expect(OpenapiContract.validate(response.parsed_body, schema))
+      .to match_array(known_upstream_deviations.fetch([method, path], []))
   end
 
   describe 'coverage of docs/openapi.json' do

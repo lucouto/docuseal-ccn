@@ -62,8 +62,8 @@ description: "Task list for Stage 2 — documents in, by any route"
 
 ## Phase 7: Staging gate and release
 
-- [ ] T023 [P] `~/Projets_apps_github/DocuSeal/staging-s2-check.sh`: CLI-driven gate against staging — create-pdf (fixture) → 8 fields + preview text check via `/api/templates/:id` document `preview_image_url` OCR-free check (download the redacted PDF via `documents[0].url`, `pdftotext` must not contain `{{`), create-docx (`fieldtags.docx`) → same 8, create-html (quickstart example, A4) → fields present, merge → 2 documents, update-documents add + merge → 1 document, submissions create-pdf `--no-send-email` → signing page 200 → completed via `PUT /s/:slug`; archive everything created; PASS/FAIL summary
-- [ ] T024 Set `CCN_DEFAULT_PAGE_SIZE=A4` in `staging-compose.yml` `environment:`; tag `3.2.4-ccn.2`, GHCR build, `./staging-deploy-tag.sh 3.2.4-ccn.2`, run `staging-s1-check.sh`, `staging-s1-bounds-check.sh`, `staging-s2-check.sh`; record in `LOOP-STATE.md` (Stage 2 table + S2 gate results), update project `CLAUDE.md` cheat sheet (Pro endpoints now available on staging) and memory
+- [x] T023 [P] `~/Projets_apps_github/DocuSeal/staging-s2-check.sh`: CLI-driven gate against staging — create-pdf (fixture) → 8 fields + preview text check via `/api/templates/:id` document `preview_image_url` OCR-free check (download the redacted PDF via `documents[0].url`, `pdftotext` must not contain `{{`), create-docx (`fieldtags.docx`) → same 8, create-html (quickstart example, A4) → fields present, merge → 2 documents, update-documents add + merge → 1 document, submissions create-pdf `--no-send-email` → signing page 200 → completed via `PUT /s/:slug`; archive everything created; PASS/FAIL summary
+- [x] T024 Set `CCN_DEFAULT_PAGE_SIZE=A4` in `staging-compose.yml` `environment:`; tag `3.2.4-ccn.2`, GHCR build, `./staging-deploy-tag.sh 3.2.4-ccn.2`, run `staging-s1-check.sh`, `staging-s1-bounds-check.sh`, `staging-s2-check.sh`; record in `LOOP-STATE.md` (Stage 2 table + S2 gate results), update project `CLAUDE.md` cheat sheet (Pro endpoints now available on staging) and memory
 
 ## Dependencies
 

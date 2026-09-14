@@ -51,6 +51,34 @@ Rails.application.routes.draw do
       resources :clone, only: %i[create], controller: 'templates_clone'
       resources :submissions, only: %i[index create]
     end
+    # CCN fork: administration by API (specs/002-everything-by-api, FR-001..FR-007). Flat controller names;
+    # `as:` keeps the helpers clear of upstream's `api_user`.
+    scope 'ccn' do
+      resources :users, only: %i[index create show update destroy], controller: 'ccn_users', as: 'ccn_users' do
+        post :reset_password, on: :member
+      end
+      resources :webhooks, only: %i[index create show update destroy], controller: 'ccn_webhooks',
+                           as: 'ccn_webhooks' do
+        member do
+          get :secret
+          get :events
+          post :test
+          post 'events/:uuid/resend', action: :resend, as: :resend_event
+        end
+      end
+      resources :account_configs, only: %i[index show update destroy], controller: 'ccn_account_configs',
+                                  as: 'ccn_account_configs', param: :key
+      resources :template_folders, only: %i[index create update destroy], controller: 'ccn_template_folders',
+                                   as: 'ccn_template_folders'
+      resources :templates, only: [], controller: 'ccn_templates', as: 'ccn_templates' do
+        resources :versions, only: %i[index create show], controller: 'ccn_template_versions', as: 'versions' do
+          post :restore, on: :member
+        end
+        member do
+          post :detect_fields, to: 'ccn_template_detect_fields#create'
+        end
+      end
+    end
     resources :tools, only: %i[] do
       post :merge, on: :collection
       post :verify, on: :collection

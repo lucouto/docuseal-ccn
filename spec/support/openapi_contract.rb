@@ -14,13 +14,13 @@ module OpenapiContract
 
   module_function
 
-  def spec
-    @spec ||= JSON.parse(SPEC_PATH.read)
+  def spec(path = SPEC_PATH)
+    (@specs ||= {})[path.to_s] ||= JSON.parse(path.read)
   end
 
   # => [{ method: 'get', path: '/templates', operation: {...} }, ...]
-  def operations
-    spec['paths'].flat_map do |path, methods|
+  def operations(path = SPEC_PATH)
+    spec(path)['paths'].flat_map do |path, methods|
       methods.slice(*HTTP_METHODS).map do |method, operation|
         { method:, path:, operation: }
       end

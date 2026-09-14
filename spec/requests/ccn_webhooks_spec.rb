@@ -56,6 +56,10 @@ describe 'CCN webhooks API' do
       expect(response).to have_http_status(:unprocessable_content)
       expect(json['error']).to eq(I18n.t('ccn_invalid_webhook_url'))
 
+      api :post, '/api/ccn/webhooks', { url: 'https://n8n.example.com/hook', secret: 'abc' }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to eq(I18n.t('ccn_invalid_webhook_secret'))
+
       api :post, '/api/ccn/webhooks', { url: 'not a url' }
       expect(response).to have_http_status(:unprocessable_content)
 

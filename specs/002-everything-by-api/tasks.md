@@ -42,7 +42,7 @@ description: "Task list for Stage 3 — everything else by API"
 
 ## Review 1 (after phase 5)
 
-- [x] T014 Diff-only reviewer on phases 1–5 (delta from `83470548`); findings fixed; CI green
+- [ ] T014 Diff-only reviewer on phases 1–5 (delta from `83470548`); findings fixed; CI green
 
 ## Phase 6: MCP tools (US5)
 

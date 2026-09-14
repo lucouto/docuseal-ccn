@@ -145,10 +145,9 @@ describe 'CCN MCP tools' do
     expect(webhook).to include('events' => ['form.completed'], 'secret_key' => 'X-Token')
     expect(webhook).not_to have_key('secret')
 
-    error, revealed = tool('manage_webhooks', { action: 'reveal', id: webhook['id'] })
-    expect(error).to be(false)
-    expect(revealed['secret']).to eq('X-Token' => 's')
-    expect(revealed['hmac_secret']).to be_present
+    error, message = tool('manage_webhooks', { action: 'reveal', id: webhook['id'] }) # secrets stay out of transcripts
+    expect(error).to be(true)
+    expect(message).to include('action must be one of')
 
     error, message = tool('manage_webhooks', { action: 'update', id: webhook['id'], events: ['form.nope'] })
     expect(error).to be(true)
@@ -157,6 +156,14 @@ describe 'CCN MCP tools' do
     error, deleted = tool('manage_webhooks', { action: 'delete', id: webhook['id'] })
     expect(error).to be(false)
     expect(deleted).to eq('id' => webhook['id'], 'deleted' => true)
+  end
+
+  it 'answers a non-object arguments value as a tool error, not a protocol error' do
+    error, message = tool('manage_webhooks', 'list')
+
+    expect(response).to have_http_status(:ok)
+    expect(error).to be(true)
+    expect(message).to eq('arguments must be an object')
   end
 
   it 'manages account configs and template preferences with the REST rules and messages' do

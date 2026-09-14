@@ -44,13 +44,33 @@ module Ccn
     end
 
     def check_pages!(documents, page_index)
-      total = documents.sum { |document| page_index ? 1 : pages_of(document) }
+      total = documents.sum do |document|
+        count = pages_of(document)
+
+        raise AdminInvalid, I18n.t('ccn_invalid_page') if page_index && page_index >= count
+
+        page_index ? 1 : count
+      end
 
       raise AdminInvalid, I18n.t('ccn_too_many_pages', max: MAX_PAGES) if total > MAX_PAGES
     end
 
+    # The count recorded at upload (Templates::ProcessDocument), read from the bytes when it is missing so an
+    # unanalysed document cannot slip past the cap.
     def pages_of(document)
-      document.metadata.to_h.dig('pdf', 'number_of_pages') || 1
+      return 1 if document.image?
+
+      document.metadata.to_h.dig('pdf', 'number_of_pages') || count_pages(document)
+    end
+
+    def count_pages(document)
+      doc = Pdfium::Document.open_bytes(document.download)
+
+      begin
+        doc.page_count
+      ensure
+        doc.close
+      end
     end
 
     def detect(document, page_index)
@@ -69,7 +89,7 @@ module Ccn
       if document.image?
         preview = document.preview_images.joins(:blob).find_by(blob: { filename: ['0.png', '0.jpg'] })
 
-        StringIO.new(preview.download)
+        StringIO.new((preview || document).download)
       else
         StringIO.new(document.download)
       end

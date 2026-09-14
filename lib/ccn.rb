@@ -25,4 +25,8 @@ module Ccn
 
   # Documented HTTP 422 for options the fork does not implement yet (dynamic DOCX, variables, template_ids).
   NotSupportedYet = Class.new(StandardError)
+
+  # A client-caused failure of an administration operation (specs/002-everything-by-api): the message is
+  # already translated and goes straight into the 422 body or the MCP tool error.
+  AdminInvalid = Class.new(StandardError)
 end

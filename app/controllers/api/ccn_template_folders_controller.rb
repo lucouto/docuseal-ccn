@@ -12,7 +12,7 @@ module Api
       folders = paginate(Ccn::ManageFolders.list(current_account))
 
       render json: {
-        data: folders.map { |folder| Ccn::ManageFolders.serialize(folder) },
+        data: Ccn::ManageFolders.serialize_all(folders),
         pagination: { count: folders.size, next: folders.last&.id, prev: folders.first&.id }
       }
     end

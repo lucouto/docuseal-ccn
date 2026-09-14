@@ -556,7 +556,7 @@
           "Users"
         ],
         "summary": "Update a user",
-        "description": "Changes name, e-mail, password, two-factor requirement or archived state. The calling user cannot change its own role, two-factor requirement or archived state (422).",
+        "description": "Changes name, e-mail, role, two-factor requirement or archived state. `password` is refused (422): as in the UI it is set at invitation only, use the reset_password operation afterwards. The calling user cannot change its own role, two-factor requirement or archived state (422).",
         "operationId": "updateUser",
         "parameters": [
           {
@@ -596,10 +596,6 @@
                       "Martin"
                     ]
                   },
-                  "password": {
-                    "type": "string",
-                    "description": "Initial password; a random one is set when omitted."
-                  },
                   "role": {
                     "type": "string",
                     "description": "One of the roles of this edition (admin)."
@@ -617,7 +613,7 @@
                       "string",
                       "null"
                     ],
-                    "description": "Alternative to `archived`: a time, or null to reactivate."
+                    "description": "Alternative to `archived`: a date-time, or null to reactivate; an unreadable value is a 422."
                   }
                 }
               }

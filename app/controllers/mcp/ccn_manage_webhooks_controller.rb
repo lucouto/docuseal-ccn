@@ -3,14 +3,15 @@
 module Mcp
   # CCN fork — MCP twin of /api/ccn/webhooks (specs/002-everything-by-api, FR-009), one tool with an `action`.
   class CcnManageWebhooksController < CcnToolController
-    ACTIONS = %w[list get create update delete reveal events resend test].freeze
+    ACTIONS = %w[list get create update delete events resend test].freeze
     LIST_LIMIT = 100
 
     SCHEMA = {
       name: 'manage_webhooks',
       title: 'Manage Webhooks',
       description: 'List, create, update or delete the account\'s webhooks, read their delivery log, resend a ' \
-                   'delivery, queue a test delivery, or reveal a webhook\'s secrets (same as /api/ccn/webhooks).',
+                   'delivery or queue a test delivery (same as /api/ccn/webhooks). The secrets are never ' \
+                   'returned here: an administrator reads them with GET /api/ccn/webhooks/{id}/secret.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -43,7 +44,6 @@ module Mcp
       when 'get' then render_tool_result(Ccn::ManageWebhooks.serialize(webhook))
       when 'update' then render_tool_result(Ccn::ManageWebhooks.update(webhook, tool_params))
       when 'delete' then render_tool_result(Ccn::ManageWebhooks.destroy(webhook))
-      when 'reveal' then render_tool_result(Ccn::ManageWebhooks.reveal(webhook))
       when 'events' then render_tool_result(events)
       when 'resend' then render_tool_result(Ccn::ManageWebhooks.resend(webhook, tool_params[:event_uuid]))
       when 'test' then render_tool_result(Ccn::ManageWebhooks.test(webhook, account))

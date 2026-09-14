@@ -9,7 +9,14 @@ module Mcp
     private
 
     def tool_params
-      @tool_params ||= Ccn::DocumentParams.indifferent(mcp_params)
+      @tool_params ||= begin
+        arguments = mcp_params
+        arguments = arguments.to_unsafe_h if arguments.respond_to?(:to_unsafe_h)
+
+        raise Ccn::AdminInvalid, 'arguments must be an object' unless arguments.is_a?(Hash)
+
+        Ccn::DocumentParams.indifferent(arguments)
+      end
     end
 
     def find_template(id)

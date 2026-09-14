@@ -5,6 +5,7 @@ module Api
   # Ccn::DetectTemplateFields; the ML detector itself is upstream's Templates::DetectFields.
   class CcnTemplateDetectFieldsController < ApiBaseController
     include Ccn::AdminErrors
+    include Ccn::IngestionErrors # the detector's own failures (corrupt/encrypted PDF, bad image) are 422s too
 
     def create
       template = Template.accessible_by(current_ability).find(params[:template_id])

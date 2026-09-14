@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 module Ccn
-  # A client-caused failure of an administration operation (specs/002-everything-by-api): the message is
-  # already translated and goes straight into the 422 body or the MCP tool error.
-  class AdminInvalid < StandardError; end
-
   # Rescue table of the /api/ccn/... controllers (FR-008): everything a client can cause is a 422 with a
   # plain-language `error`, a missing or foreign record is a 404 with the same shape; nothing client-controlled
   # may produce a 500.

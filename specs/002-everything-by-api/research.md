@@ -51,8 +51,8 @@ inside `Ccn` (`::TemplateFolders`, `::TemplateVersions`, `::Users` exist — hen
 
 | type | keys |
 |------|------|
-| boolean | `allow_typed_signature`, `force_mfa`, `allow_to_resubmit`, `allow_to_decline`, `allow_to_delegate`, `form_prefill_signature`, `form_with_confetti`, `download_links_auth`, `force_sso_auth`, `flatten_result_pdf`, `enforce_signing_order`, `with_file_links`, `with_signature_id`, `combine_pdf_result_key`, `require_signing_reason`, `enable_mcp` |
-| string | `esigning_preference` (`single` / `multiple`... as the UI select), `download_links_expire` (duration as the UI select), `document_filename_format`, `bcc_emails`, `policy_links` (markdown) |
+| boolean | `allow_typed_signature`, `force_mfa`, `allow_to_resubmit`, `allow_to_decline`, `allow_to_delegate`, `form_prefill_signature`, `form_with_confetti`, `download_links_auth`, `force_sso_auth`, `flatten_result_pdf`, `enforce_signing_order`, `with_file_links`, `with_signature_id`, `combine_pdf_result_key`, `require_signing_reason`, `enable_mcp`, `download_links_expire` (a boolean upstream: `lib/accounts.rb` and the blob proxy compare it to `false`; the UI select is only the toggle's presentation) |
+| string | `esigning_preference` (`single` / `multiple`... as the UI select), `document_filename_format`, `bcc_emails`, `policy_links` (markdown) |
 | object | `submitter_invitation_email`, `submitter_invitation_reminder_email`, `submitter_documents_copy_email`, `submitter_completed_email` (`subject`, `body`, plus `reply_to`, `attach_audit_log`, `attach_documents`, `bcc_recipients`, `enabled` where the UI form has them), `form_completed_button` (`title`, `url`), `form_completed_message` (`title`, `body`), `submitter_reminders` (`first_duration`, `second_duration`, `third_duration` ∈ `AccountConfigs::REMINDER_DURATIONS.keys`) |
 
 Coercions as the UI: `'1'/'0'/'true'/'false'` → boolean for boolean keys; object members not in the member list

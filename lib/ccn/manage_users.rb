@@ -55,13 +55,18 @@ module Ccn
       attrs = permitted(attrs)
 
       raise AdminInvalid, I18n.t('ccn_self_change_refused') if user == actor && attrs.keys.intersect?(SELF_GUARDED)
+      # As the UI (UsersController#update strips `password` for everyone): a password is set at invitation only;
+      # afterwards the user resets it through the e-mailed instructions.
+      raise AdminInvalid, I18n.t('ccn_password_immutable') if attrs['password'].present?
 
-      changes = attrs.except('archived', 'archived_at').reject { |_, value| value.blank? && value != false }
+      changes = attrs.except('archived', 'archived_at', 'password').reject { |_, value| value.blank? && value != false }
       changes.merge!(archived_attrs(attrs))
 
       user.update!(changes)
 
-      if user.try(:pending_reconfirmation?) && user.previous_changes.key?(:unconfirmed_email)
+      # The UI's branch; Devise :confirmable is not enabled in this edition (app/models/user.rb), so a changed
+      # e-mail takes effect immediately and no reconfirmation is queued.
+      if user.try(:pending_reconfirmation?) && user.previous_changes.key?('unconfirmed_email')
         SendConfirmationInstructionsJob.perform_async('user_id' => user.id)
       end
 
@@ -114,10 +119,23 @@ module Ccn
       if attrs.key?('archived')
         { 'archived_at' => Ccn::DocumentParams.boolean(attrs['archived']) ? Time.current : nil }
       elsif attrs.key?('archived_at')
-        { 'archived_at' => attrs['archived_at'].presence }
+        { 'archived_at' => parse_time(attrs['archived_at']) }
       else
         {}
       end
+    end
+
+    # A date-time string or blank (unarchive); anything unreadable is refused instead of being cast to nil.
+    def parse_time(value)
+      return if value.blank?
+
+      time = value.is_a?(String) ? Time.zone.parse(value) : nil
+
+      raise AdminInvalid, I18n.t('ccn_invalid_archived_at') if time.nil?
+
+      time
+    rescue ArgumentError
+      raise AdminInvalid, I18n.t('ccn_invalid_archived_at')
     end
   end
 end

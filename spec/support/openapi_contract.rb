@@ -20,9 +20,9 @@ module OpenapiContract
 
   # => [{ method: 'get', path: '/templates', operation: {...} }, ...]
   def operations(path = SPEC_PATH)
-    spec(path)['paths'].flat_map do |path, methods|
+    spec(path)['paths'].flat_map do |route, methods|
       methods.slice(*HTTP_METHODS).map do |method, operation|
-        { method:, path:, operation: }
+        { method:, path: route, operation: }
       end
     end
   end

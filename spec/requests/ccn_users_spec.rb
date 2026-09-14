@@ -125,6 +125,25 @@ describe 'CCN users API' do
       expect(json['archived_at']).to be_nil
     end
 
+    it 'refuses a password change and an unreadable archived_at, and stores a readable one' do
+      colleague = create(:user, account:)
+      digest = colleague.encrypted_password
+
+      api :put, "/api/ccn/users/#{colleague.id}", { password: 'NewSecret123!' }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to eq(I18n.t('ccn_password_immutable'))
+      expect(colleague.reload.encrypted_password).to eq(digest)
+
+      api :put, "/api/ccn/users/#{colleague.id}", { archived_at: 'yesterday-ish' }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to eq(I18n.t('ccn_invalid_archived_at'))
+      expect(colleague.reload.archived_at).to be_nil
+
+      api :put, "/api/ccn/users/#{colleague.id}", { archived_at: '2026-09-01T10:00:00Z' }
+      expect(response).to have_http_status(:ok)
+      expect(colleague.reload.archived_at).to eq(Time.zone.parse('2026-09-01T10:00:00Z'))
+    end
+
     it 'answers 404 for a user of another account' do
       stranger = create(:user)
 

@@ -12,7 +12,7 @@ module Ccn
 
     # @return [ActiveRecord::Relation] unordered; the controller paginates
     def list(account)
-      account.template_folders.active
+      account.template_folders.active.preload(:parent_folder)
     end
 
     def create(user, name)
@@ -48,9 +48,17 @@ module Ccn
       serialize(folder)
     end
 
-    def serialize(folder)
+    def serialize(folder, templates_count: nil)
       folder.as_json(only: SERIALIZE_ONLY)
-            .merge('full_name' => folder.full_name, 'templates_count' => folder.active_templates.count)
+            .merge('full_name' => folder.full_name,
+                   'templates_count' => templates_count || folder.active_templates.count)
+    end
+
+    # A page of folders with one COUNT query instead of one per row.
+    def serialize_all(folders)
+      counts = Template.active.where(folder_id: folders.map(&:id)).group(:folder_id).count
+
+      folders.map { |folder| serialize(folder, templates_count: counts.fetch(folder.id, 0)) }
     end
   end
 end

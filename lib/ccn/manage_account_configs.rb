@@ -122,7 +122,7 @@ module Ccn
 
     def coerce_string(key, value)
       raise AdminInvalid, I18n.t('ccn_invalid_setting_value', key:, type: 'string') unless value.is_a?(String)
-      raise AdminInvalid, I18n.t('ccn_invalid_setting_value', key:, type: 'string') if value.bytesize > MAX_STRING_BYTES
+      check_size!(key, value)
 
       value
     end
@@ -148,9 +148,16 @@ module Ccn
       return true if [true, 'true'].include?(member)
       return false if [false, 'false'].include?(member)
       return member if member.nil?
-      return member.to_s if member.is_a?(String) || member.is_a?(Numeric)
+
+      return check_size!(key, member.to_s) if member.is_a?(String) || member.is_a?(Numeric)
 
       raise AdminInvalid, I18n.t('ccn_invalid_setting_value', key:, type: 'object of strings and booleans')
+    end
+
+    def check_size!(key, value)
+      return value if value.bytesize <= MAX_STRING_BYTES
+
+      raise AdminInvalid, I18n.t('ccn_setting_too_long', key:, max: MAX_STRING_BYTES)
     end
 
     def validate_values!(key, definition, value)

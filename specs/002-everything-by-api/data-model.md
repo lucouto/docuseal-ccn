@@ -136,8 +136,11 @@ Serialized: `{ "id", "name", "full_name", "parent_folder_id", "archived_at", "te
 Request: `{ "attachment_uuid": "…" (optional), "page": 1 (optional, 1-based), "apply": false }`.
 Response: `{ "documents": [{ "attachment_uuid", "pages": [{ "page": 1, "fields": [{ "type", "name", "areas": [{ "x", "y", "w", "h", "page", "attachment_uuid" }] }] }] }], "applied": 0 }`.
 Rules: no schema document → 422 `ccn_no_documents`; total pages > 30 → 422 `ccn_too_many_pages`;
-`apply: true` → each candidate becomes `{ uuid, name, type, required: true, submitter_uuid: first submitter,
-areas }` unless a field with the same name and an area on the same page overlapping (IoU > 0.5) exists;
+`page` beyond the document → 422 `ccn_invalid_page`; a detector failure (corrupt/encrypted PDF, bad image) → 422;
+`apply: true` → each candidate becomes `{ uuid, name: '', type, required (as detected), submitter_uuid: first
+submitter, areas }` — the detector yields no name, so the fields are unnamed like the editor's own detection and
+are renamed through `PUT /api/templates/{id}` `fields[]` — unless an existing field has an area on the same page
+overlapping it (IoU > 0.5);
 `template.save!`; `template.updated` webhook.
 
 ## MCP tool arguments (mirror the REST bodies)

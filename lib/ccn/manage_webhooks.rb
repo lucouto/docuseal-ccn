@@ -122,7 +122,10 @@ module Ccn
 
     # `{ key:, value: }` (the UI's form) or `{ "X-Header" => "value" }`; one header; blank clears.
     def normalize_secret(secret)
-      secret = secret.respond_to?(:to_unsafe_h) ? secret.to_unsafe_h : secret.to_h
+      secret = secret.to_unsafe_h if secret.respond_to?(:to_unsafe_h)
+
+      raise AdminInvalid, I18n.t('ccn_invalid_webhook_secret') unless secret.nil? || secret.is_a?(Hash)
+
       secret = secret.to_h.transform_keys(&:to_s)
       secret = { secret['key'].to_s => secret['value'].to_s } if secret.key?('key') || secret.key?('value')
 

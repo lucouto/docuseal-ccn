@@ -199,10 +199,19 @@ describe 'CCN template administration API' do
       expect(template.reload.fields.size).to eq(fields_before + 1)
     end
 
-    it 'refuses a bad page, a template without documents and too many pages' do
+    it 'refuses a bad page, a detector failure, a template without documents and too many pages' do
       api :post, "/api/ccn/templates/#{template.id}/detect_fields", { page: 0 }
       expect(response).to have_http_status(:unprocessable_content)
       expect(json['error']).to eq(I18n.t('ccn_invalid_page'))
+
+      api :post, "/api/ccn/templates/#{template.id}/detect_fields", { page: 99 }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to eq(I18n.t('ccn_invalid_page'))
+
+      allow(Templates::DetectFields).to receive(:call).and_raise(Pdfium::PdfiumError, 'corrupt')
+      api :post, "/api/ccn/templates/#{template.id}/detect_fields"
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to be_present
 
       empty = create(:template, account:, author: admin, attachment_count: 0)
       api :post, "/api/ccn/templates/#{empty.id}/detect_fields"

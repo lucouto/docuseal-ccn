@@ -138,7 +138,6 @@ describe 'CCN Stage 1' do
 
       put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '2', uuids['b'] => '1' } }
 
-      expect(I18n.exists?(:ccn_formula_error_zero_division)).to be(true)
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_zero_division'))
       expect(submitter.reload.completed_at).to be_nil
@@ -155,8 +154,50 @@ describe 'CCN Stage 1' do
       }
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.parsed_body['error']).to start_with(I18n.t('ccn_formula_error', message: '').strip)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_not_a_number'))
       expect(submitter.reload.completed_at).to be_nil
+    end
+
+    it 'refuses a result that does not fit a double instead of storing Infinity' do
+      template.update!(fields: template.fields.map do |f|
+        f['name'] == 'total' ? f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} ^ 400 + 0.5" }) : f
+      end)
+
+      put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '10', uuids['b'] => '1' } }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_out_of_range'))
+    end
+
+    it 'refuses a signer-controlled exponent that would take minutes to compute exactly' do
+      template.update!(fields: template.fields.map do |f|
+        f['name'] == 'total' ? f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} ^ {{#{uuids['b']}}}" }) : f
+      end)
+
+      put "/s/#{submitter.slug}", params: {
+        completed: 'true', values: { uuids['a'] => '7', uuids['b'] => '100000000' }
+      }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_out_of_range'))
+    end
+
+    it 'refuses a referenced value with more than 20 significant digits' do
+      put "/s/#{submitter.slug}", params: {
+        completed: 'true', values: { uuids['a'] => "1#{'0' * 25}", uuids['b'] => '1' }
+      }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_out_of_range'))
+      expect(submitter.reload.completed_at).to be_nil
+    end
+
+    it 'translates every formula error in English and French' do
+      %w[ccn_formula_error ccn_formula_error_zero_division ccn_formula_error_not_a_number
+         ccn_formula_error_out_of_range].each do |key|
+        expect(I18n.exists?(key, :en)).to be(true)
+        expect(I18n.exists?(key, :fr)).to be(true)
+      end
     end
   end
 end

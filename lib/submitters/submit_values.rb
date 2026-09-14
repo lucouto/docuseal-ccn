@@ -265,8 +265,14 @@ module Submitters
     # about to be signed.
     FORMULA_NUMBER_REGEXP = /\A-?\d+(\.\d+)?\z/
     FORMULA_RESULT_SCALE = 10
-    # Ruby arithmetic errors that dentaku 4.0.2 does not wrap itself (e.g. Math::DomainError from
-    # BigDecimal#** with a negative base and a fractional exponent). RangeError covers FloatDomainError.
+    # Limits that keep a signer-controlled value from blowing up an exact (BigDecimal) evaluation:
+    # 7 ^ 100000 already has 84510 digits and 7 ^ 100000000 never finishes.
+    FORMULA_MAX_DIGITS = 20 # significant digits accepted in a referenced value
+    FORMULA_MAX_BASE_DIGITS = 100 # significant digits of the left operand of ^
+    FORMULA_MAX_EXPONENT = 1000 # absolute value of the right operand of ^
+    FORMULA_MAX_RESULT_BITS = 1024 # integral results must stay within a double's range
+    # Ruby arithmetic errors that dentaku 4.0.2 does not wrap itself (Math::DomainError from BigDecimal#**
+    # with a negative base and a fractional exponent). RangeError covers FloatDomainError.
     FORMULA_ERRORS = [Dentaku::Error, ::Math::DomainError, ::ZeroDivisionError, ::RangeError].freeze
 
     def calculate_formula_value(formula, values)
@@ -280,53 +286,107 @@ module Submitters
         name
       end
 
-      normalize_formula_result(Dentaku::Calculator.new.evaluate!(expression, variables))
+      calculator = Dentaku::Calculator.new
+      node = calculator.ast(expression)
+
+      check_formula_exponents!(node, calculator, variables)
+
+      normalize_formula_result(calculator.evaluate!(node, variables))
     rescue *FORMULA_ERRORS => e
       raise ValidationError, formula_error_message(e)
     end
 
-    # Floats are bound as BigDecimal so every operand is exact and BigDecimal#** rejects a negative base
-    # with a fractional exponent (Math::DomainError) instead of returning a Complex the way Float#** does.
-    # A single-valued array (select / multiple field) counts as its first element.
+    # Every referenced value is bound as a BigDecimal: arithmetic stays exact, and BigDecimal#** raises
+    # Math::DomainError for a negative base with a fractional exponent instead of returning a Complex the
+    # way Float#** does. Blank, non-numeric, boolean and multi-item values count as 0; a single-item array
+    # (select / multiple field) counts as its item. Values with too many digits are refused (HTTP 422).
     def numeric_formula_value(value)
-      value = value.first if value.is_a?(Array)
+      value = value.first if value.is_a?(Array) && value.size == 1
 
-      case value
-      when Integer then value
-      when Numeric then value.finite? ? BigDecimal(value.to_s) : 0
-      when String then value.strip.match?(FORMULA_NUMBER_REGEXP) ? BigDecimal(value.strip) : 0
-      else 0
+      number =
+        case value
+        when Integer then BigDecimal(value)
+        when Numeric then value.real? && value.finite? ? BigDecimal(value.to_s) : 0
+        when String then value.strip.match?(FORMULA_NUMBER_REGEXP) ? BigDecimal(value.strip) : 0
+        else 0
+        end
+
+      formula_error!(:out_of_range) if number.is_a?(BigDecimal) && number.precision > FORMULA_MAX_DIGITS
+
+      number
+    rescue ArgumentError, TypeError
+      0
+    end
+
+    # `^` is the only dentaku operation whose cost grows with the magnitude of a value, so both operands of
+    # every Exponentiation node are evaluated and bounded before the whole expression is. Children first,
+    # so a `^` nested inside an operand is bounded before that operand is evaluated.
+    def check_formula_exponents!(node, calculator, variables)
+      formula_child_nodes(node).each { |child| check_formula_exponents!(child, calculator, variables) }
+
+      return unless node.is_a?(Dentaku::AST::Exponentiation)
+
+      base = calculator.evaluate!(node.left, variables)
+      exponent = calculator.evaluate!(node.right, variables)
+
+      formula_error!(:out_of_range) unless formula_operand_ok?(base, FORMULA_MAX_BASE_DIGITS)
+      formula_error!(:out_of_range) if exponent.is_a?(Numeric) && exponent.finite? &&
+                                       exponent.abs > FORMULA_MAX_EXPONENT
+    end
+
+    def formula_child_nodes(node)
+      node.instance_variables.flat_map { |ivar| Array(node.instance_variable_get(ivar)) }
+          .grep(Dentaku::AST::Node)
+    end
+
+    def formula_operand_ok?(operand, max_digits)
+      case operand
+      when Integer then operand.bit_length <= FORMULA_MAX_RESULT_BITS
+      when BigDecimal then operand.finite? && operand.precision <= max_digits
+      else true
       end
     end
 
     def normalize_formula_result(result)
       return result unless result.is_a?(Numeric)
-      return result if result.is_a?(Integer)
-      raise ValidationError, formula_error_message(:not_a_number) unless result.real? && result.finite?
+
+      formula_error!(:not_a_number) unless result.real? && result.finite?
+
+      return formula_integer_result(result) if result.is_a?(Integer)
 
       rounded = BigDecimal(result.to_s).round(FORMULA_RESULT_SCALE)
 
-      return rounded.to_i if rounded.frac.zero?
+      return formula_integer_result(rounded.to_i) if rounded.frac.zero?
 
       float = rounded.to_f
 
-      raise ValidationError, formula_error_message(:not_a_number) unless float.finite?
+      formula_error!(:out_of_range) unless float.finite?
 
       float
     rescue ArgumentError, TypeError
-      raise ValidationError, formula_error_message(:not_a_number)
+      formula_error!(:not_a_number)
     end
 
-    def formula_error_message(error)
-      case error
-      when :not_a_number, ::FloatDomainError
-        I18n.t('ccn_formula_error_not_a_number')
-      when ::ZeroDivisionError
-        I18n.t('ccn_formula_error_zero_division')
-      else
-        text = error.message.to_s.presence || error.class.name.demodulize
+    def formula_integer_result(integer)
+      formula_error!(:out_of_range) if integer.bit_length > FORMULA_MAX_RESULT_BITS
 
-        I18n.t('ccn_formula_error', message: text)
+      integer
+    end
+
+    def formula_error!(key)
+      raise ValidationError, I18n.t(:"ccn_formula_error_#{key}")
+    end
+
+    # The signer only sees translated messages; dentaku's own text (which names the bound variables) goes
+    # to the log.
+    def formula_error_message(exception)
+      case exception
+      when ::ZeroDivisionError then I18n.t('ccn_formula_error_zero_division')
+      when ::Math::DomainError then I18n.t('ccn_formula_error_not_a_number')
+      else
+        Rails.logger.warn("[ccn] formula error: #{exception.class}: #{exception.message}")
+
+        I18n.t('ccn_formula_error')
       end
     end
 

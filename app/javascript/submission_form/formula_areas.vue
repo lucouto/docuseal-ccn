@@ -90,7 +90,7 @@ export default {
       })
     },
     numericFormulaValue (value) {
-      const item = Array.isArray(value) ? value[0] : value
+      const item = Array.isArray(value) && value.length === 1 ? value[0] : value
 
       if (typeof item === 'number') return Number.isFinite(item) ? item : 0.0
       if (typeof item === 'string' && /^-?\d+(\.\d+)?$/.test(item.trim())) return parseFloat(item)
@@ -104,8 +104,9 @@ export default {
 
       const result = this.math.evaluate(transformedFormula.toLowerCase())
 
-      // Same 10-decimal rounding as normalize_formula_result in lib/submitters/submit_values.rb, so the
-      // preview on the signing page matches the value stored on completion.
+      // Same 10-decimal rounding as normalize_formula_result in lib/submitters/submit_values.rb. The client
+      // still computes in binary floating point, so the preview agrees with the stored value to about 15
+      // significant digits (enough to hide 0.1 + 0.2 noise), not bit for bit.
       return typeof result === 'number' && Number.isFinite(result) ? parseFloat(result.toFixed(10)) : result
     },
     evalTextFormula (field, depth = 0) {

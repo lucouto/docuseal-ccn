@@ -4,13 +4,15 @@ en:
   ccn_not_available_yet: Not available on this instance yet
   ccn_not_available_yet_hint_html: This DocuSeal Pro feature is being reimplemented in the <a class="link" href="%{url}" target="_blank" rel="noopener">CCN fork</a>.
   ccn_source_code: Source code of this instance
-  ccn_formula_error: 'Formula could not be computed: %{message}'
+  ccn_formula_error: Formula could not be computed
   ccn_formula_error_zero_division: 'Formula could not be computed: division by zero'
-  ccn_formula_error_not_a_number: 'Formula could not be computed: the result is not a number'
+  ccn_formula_error_not_a_number: 'Formula could not be computed: the result is not a real number'
+  ccn_formula_error_out_of_range: 'Formula could not be computed: a value or the result is out of range'
 fr:
   ccn_not_available_yet: Pas encore disponible sur cette instance
   ccn_not_available_yet_hint_html: Cette fonctionnalité DocuSeal Pro est en cours de réimplémentation dans le <a class="link" href="%{url}" target="_blank" rel="noopener">fork CCN</a>.
   ccn_source_code: Code source de cette instance
-  ccn_formula_error: 'La formule n''a pas pu être calculée : %{message}'
+  ccn_formula_error: 'La formule n''a pas pu être calculée'
   ccn_formula_error_zero_division: 'La formule n''a pas pu être calculée : division par zéro'
-  ccn_formula_error_not_a_number: 'La formule n''a pas pu être calculée : le résultat n''est pas un nombre'
+  ccn_formula_error_not_a_number: 'La formule n''a pas pu être calculée : le résultat n''est pas un nombre réel'
+  ccn_formula_error_out_of_range: 'La formule n''a pas pu être calculée : une valeur ou le résultat est hors limites'

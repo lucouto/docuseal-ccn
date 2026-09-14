@@ -1,0 +1,3801 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "version": "3.2.4-ccn.4",
+    "title": "DocuSeal CCN API (fork additions)",
+    "description": "Operations the CCN fork adds to DocuSeal's API (docs/openapi.json documents the upstream ones, all implemented). Administration functions that are UI-only in DocuSeal (users, webhooks, account settings, template folders, template versions, field detection) plus the `preferences` extension of PUT /templates/{id}. Same authentication as upstream (X-Auth-Token). Every refused request answers 422 {\"error\": \"...\"}.",
+    "contact": {
+      "name": "docuseal-ccn",
+      "url": "https://github.com/lucouto/docuseal-ccn"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://docuseal.cheminneuf.community/api",
+      "description": "Production (stock 3.2.4 until promoted)"
+    },
+    {
+      "url": "https://docuseal-staging.cheminneuf.community/api",
+      "description": "Staging (the fork)"
+    }
+  ],
+  "tags": [
+    "Users",
+    "Webhooks",
+    "Account",
+    "Templates"
+  ],
+  "paths": {
+    "/ccn/users": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Users"
+        ],
+        "summary": "List users",
+        "description": "The users of the account: active by default, or archived / integration users with `status`.",
+        "operationId": "listUsers",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "integration"
+              ]
+            },
+            "description": "Which users to list (default active)."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Number of items to return (max 100).",
+            "example": 10
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items after this id (pagination cursor)."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items before this id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "description": "User unique ID number."
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "first_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "last_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "role": {
+                            "type": "string",
+                            "description": "The user's role (this edition has one role: admin)."
+                          },
+                          "archived_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Set when the user is archived."
+                          },
+                          "otp_required_for_login": {
+                            "type": "boolean",
+                            "description": "Two-factor authentication required at sign-in."
+                          },
+                          "current_sign_in_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "last_sign_in_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "updated_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "role",
+                          "archived_at",
+                          "created_at",
+                          "updated_at"
+                        ]
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "next": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "prev": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 3,
+                      "email": "alice@example.com",
+                      "first_name": "Alice",
+                      "last_name": "Martin",
+                      "role": "admin",
+                      "archived_at": null,
+                      "otp_required_for_login": false,
+                      "current_sign_in_at": null,
+                      "last_sign_in_at": null,
+                      "created_at": "2026-09-14T09:00:00.000Z",
+                      "updated_at": "2026-09-14T09:00:00.000Z"
+                    }
+                  ],
+                  "pagination": {
+                    "count": 1,
+                    "next": 3,
+                    "prev": 3
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Users"
+        ],
+        "summary": "Invite a user",
+        "description": "Creates an active user with the default role and queues the invitation e-mail (unless `send_email` is false). An archived user with the same e-mail is reactivated instead; an active one is a 422.",
+        "operationId": "inviteUser",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "E-mail address (sign-in name).",
+                    "examples": [
+                      "alice@example.com"
+                    ]
+                  },
+                  "first_name": {
+                    "type": "string",
+                    "examples": [
+                      "Alice"
+                    ]
+                  },
+                  "last_name": {
+                    "type": "string",
+                    "examples": [
+                      "Martin"
+                    ]
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Initial password; a random one is set when omitted."
+                  },
+                  "role": {
+                    "type": "string",
+                    "description": "One of the roles of this edition (admin)."
+                  },
+                  "otp_required_for_login": {
+                    "type": "boolean",
+                    "description": "Require two-factor authentication."
+                  },
+                  "send_email": {
+                    "type": "boolean",
+                    "description": "Send the invitation e-mail (default true).",
+                    "default": true
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "User unique ID number."
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "first_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "last_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "role": {
+                      "type": "string",
+                      "description": "The user's role (this edition has one role: admin)."
+                    },
+                    "archived_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Set when the user is archived."
+                    },
+                    "otp_required_for_login": {
+                      "type": "boolean",
+                      "description": "Two-factor authentication required at sign-in."
+                    },
+                    "current_sign_in_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "last_sign_in_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "role",
+                    "archived_at",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 3,
+                  "email": "alice@example.com",
+                  "first_name": "Alice",
+                  "last_name": "Martin",
+                  "role": "admin",
+                  "archived_at": null,
+                  "otp_required_for_login": false,
+                  "current_sign_in_at": null,
+                  "last_sign_in_at": null,
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/users/{id}": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get a user",
+        "description": "One user of the account.",
+        "operationId": "getUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the user.",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "User unique ID number."
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "first_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "last_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "role": {
+                      "type": "string",
+                      "description": "The user's role (this edition has one role: admin)."
+                    },
+                    "archived_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Set when the user is archived."
+                    },
+                    "otp_required_for_login": {
+                      "type": "boolean",
+                      "description": "Two-factor authentication required at sign-in."
+                    },
+                    "current_sign_in_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "last_sign_in_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "role",
+                    "archived_at",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 3,
+                  "email": "alice@example.com",
+                  "first_name": "Alice",
+                  "last_name": "Martin",
+                  "role": "admin",
+                  "archived_at": null,
+                  "otp_required_for_login": false,
+                  "current_sign_in_at": null,
+                  "last_sign_in_at": null,
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update a user",
+        "description": "Changes name, e-mail, password, two-factor requirement or archived state. The calling user cannot change its own role, two-factor requirement or archived state (422).",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the user.",
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "E-mail address (sign-in name).",
+                    "examples": [
+                      "alice@example.com"
+                    ]
+                  },
+                  "first_name": {
+                    "type": "string",
+                    "examples": [
+                      "Alice"
+                    ]
+                  },
+                  "last_name": {
+                    "type": "string",
+                    "examples": [
+                      "Martin"
+                    ]
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Initial password; a random one is set when omitted."
+                  },
+                  "role": {
+                    "type": "string",
+                    "description": "One of the roles of this edition (admin)."
+                  },
+                  "otp_required_for_login": {
+                    "type": "boolean",
+                    "description": "Require two-factor authentication."
+                  },
+                  "archived": {
+                    "type": "boolean",
+                    "description": "true archives, false reactivates."
+                  },
+                  "archived_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Alternative to `archived`: a time, or null to reactivate."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "User unique ID number."
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "first_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "last_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "role": {
+                      "type": "string",
+                      "description": "The user's role (this edition has one role: admin)."
+                    },
+                    "archived_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Set when the user is archived."
+                    },
+                    "otp_required_for_login": {
+                      "type": "boolean",
+                      "description": "Two-factor authentication required at sign-in."
+                    },
+                    "current_sign_in_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "last_sign_in_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "role",
+                    "archived_at",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 3,
+                  "email": "alice@example.com",
+                  "first_name": "Alice",
+                  "last_name": "Martin",
+                  "role": "admin",
+                  "archived_at": null,
+                  "otp_required_for_login": false,
+                  "current_sign_in_at": null,
+                  "last_sign_in_at": null,
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Users"
+        ],
+        "summary": "Archive a user",
+        "description": "Soft-deletes the user (`archived_at` set); it can no longer sign in. Not for the calling user (422).",
+        "operationId": "archiveUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the user.",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "User unique ID number."
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "first_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "last_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "role": {
+                      "type": "string",
+                      "description": "The user's role (this edition has one role: admin)."
+                    },
+                    "archived_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Set when the user is archived."
+                    },
+                    "otp_required_for_login": {
+                      "type": "boolean",
+                      "description": "Two-factor authentication required at sign-in."
+                    },
+                    "current_sign_in_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "last_sign_in_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "email",
+                    "role",
+                    "archived_at",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 3,
+                  "email": "alice@example.com",
+                  "first_name": "Alice",
+                  "last_name": "Martin",
+                  "role": "admin",
+                  "archived_at": "2026-09-14T10:00:00.000Z",
+                  "otp_required_for_login": false,
+                  "current_sign_in_at": null,
+                  "last_sign_in_at": null,
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/users/{id}/reset_password": {
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Users"
+        ],
+        "summary": "Send a password reset",
+        "description": "E-mails the reset instructions, at most once per 10 minutes; not for an archived user.",
+        "operationId": "resetUserPassword",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the user.",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sent": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "sent"
+                  ]
+                },
+                "example": {
+                  "sent": true
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/webhooks": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "List webhooks",
+        "description": "The account's webhook URLs, without their secrets.",
+        "operationId": "listWebhooks",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Number of items to return (max 100).",
+            "example": 10
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items after this id (pagination cursor)."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items before this id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "url": {
+                            "type": "string",
+                            "description": "The URL called for each event."
+                          },
+                          "events": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Event names delivered to this URL."
+                          },
+                          "secret_key": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "Name of the custom header sent with each delivery (its value is never listed)."
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "updated_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "url",
+                          "events",
+                          "secret_key",
+                          "created_at",
+                          "updated_at"
+                        ]
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "next": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "prev": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 2,
+                      "url": "https://n8n.example.com/webhook/docuseal",
+                      "events": [
+                        "form.completed",
+                        "submission.completed"
+                      ],
+                      "secret_key": "X-Token",
+                      "created_at": "2026-09-14T09:00:00.000Z",
+                      "updated_at": "2026-09-14T09:00:00.000Z"
+                    }
+                  ],
+                  "pagination": {
+                    "count": 1,
+                    "next": 2,
+                    "prev": 2
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Create a webhook",
+        "description": "Registers a URL for the given events.",
+        "operationId": "createWebhook",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "http(s) URL to call.",
+                    "examples": [
+                      "https://n8n.example.com/webhook/docuseal"
+                    ]
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "form.viewed",
+                        "form.started",
+                        "form.completed",
+                        "form.declined",
+                        "submission.created",
+                        "submission.completed",
+                        "submission.expired",
+                        "submission.archived",
+                        "template.created",
+                        "template.updated",
+                        "template.archived"
+                      ]
+                    },
+                    "description": "Events to deliver (default: form.viewed, form.started, form.completed, form.declined)."
+                  },
+                  "secret": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "Header name."
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "Header value."
+                      }
+                    },
+                    "description": "One custom header sent with every delivery; {} removes it. Never returned by list or show."
+                  }
+                },
+                "required": [
+                  "url"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "url": {
+                      "type": "string",
+                      "description": "The URL called for each event."
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Event names delivered to this URL."
+                    },
+                    "secret_key": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Name of the custom header sent with each delivery (its value is never listed)."
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "url",
+                    "events",
+                    "secret_key",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 2,
+                  "url": "https://n8n.example.com/webhook/docuseal",
+                  "events": [
+                    "form.completed",
+                    "submission.completed"
+                  ],
+                  "secret_key": "X-Token",
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/webhooks/{id}": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Get a webhook",
+        "description": "One webhook, without its secrets.",
+        "operationId": "getWebhook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the webhook.",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "url": {
+                      "type": "string",
+                      "description": "The URL called for each event."
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Event names delivered to this URL."
+                    },
+                    "secret_key": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Name of the custom header sent with each delivery (its value is never listed)."
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "url",
+                    "events",
+                    "secret_key",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 2,
+                  "url": "https://n8n.example.com/webhook/docuseal",
+                  "events": [
+                    "form.completed",
+                    "submission.completed"
+                  ],
+                  "secret_key": "X-Token",
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Update a webhook",
+        "description": "Changes the URL, the events (replaced whole) or the custom header (replaced whole; {} clears it).",
+        "operationId": "updateWebhook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the webhook.",
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "http(s) URL to call.",
+                    "examples": [
+                      "https://n8n.example.com/webhook/docuseal"
+                    ]
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "form.viewed",
+                        "form.started",
+                        "form.completed",
+                        "form.declined",
+                        "submission.created",
+                        "submission.completed",
+                        "submission.expired",
+                        "submission.archived",
+                        "template.created",
+                        "template.updated",
+                        "template.archived"
+                      ]
+                    },
+                    "description": "Events to deliver (default: form.viewed, form.started, form.completed, form.declined)."
+                  },
+                  "secret": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "Header name."
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "Header value."
+                      }
+                    },
+                    "description": "One custom header sent with every delivery; {} removes it. Never returned by list or show."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "url": {
+                      "type": "string",
+                      "description": "The URL called for each event."
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Event names delivered to this URL."
+                    },
+                    "secret_key": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Name of the custom header sent with each delivery (its value is never listed)."
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "url",
+                    "events",
+                    "secret_key",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 2,
+                  "url": "https://n8n.example.com/webhook/docuseal",
+                  "events": [
+                    "form.completed",
+                    "submission.completed"
+                  ],
+                  "secret_key": "X-Token",
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Delete a webhook",
+        "description": "Removes the webhook; its past deliveries stay readable in the UI.",
+        "operationId": "deleteWebhook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the webhook.",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "deleted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "deleted"
+                  ]
+                },
+                "example": {
+                  "id": 2,
+                  "deleted": true
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/webhooks/{id}/secret": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Reveal a webhook's secrets",
+        "description": "The custom header and the HMAC signing secret (`X-Docuseal-Signature`). The only operation that returns them.",
+        "operationId": "revealWebhookSecret",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the webhook.",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "secret": {
+                      "type": "object",
+                      "description": "{header name: value}, {} when none."
+                    },
+                    "hmac_secret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secret",
+                    "hmac_secret"
+                  ]
+                },
+                "example": {
+                  "secret": {
+                    "X-Token": "s3cr3t"
+                  },
+                  "hmac_secret": "9f8e7d..."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/webhooks/{id}/events": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "List deliveries",
+        "description": "The webhook's deliveries, newest first, with their attempts.",
+        "operationId": "listWebhookEvents",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the webhook.",
+            "example": 1
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "success",
+                "error"
+              ]
+            },
+            "description": "Only deliveries with this status."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Number of items to return (max 100).",
+            "example": 10
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items after this id (pagination cursor)."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items before this id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "uuid": {
+                            "type": "string"
+                          },
+                          "event_type": {
+                            "type": "string",
+                            "description": "One of the webhook event names."
+                          },
+                          "record_type": {
+                            "type": "string",
+                            "description": "Submitter, Submission or Template."
+                          },
+                          "record_id": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string",
+                            "description": "success or error."
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "attempts": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "attempt": {
+                                  "type": "integer"
+                                },
+                                "response_status_code": {
+                                  "type": "integer"
+                                },
+                                "created_at": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "attempt",
+                                "response_status_code",
+                                "created_at"
+                              ]
+                            },
+                            "description": "Delivery attempts, oldest first."
+                          }
+                        },
+                        "required": [
+                          "uuid",
+                          "event_type",
+                          "record_type",
+                          "record_id",
+                          "status",
+                          "created_at",
+                          "attempts"
+                        ]
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "next": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "prev": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "uuid": "6f3c9f1e-1d4c-4b2e-9c3e-2a1f4a3b5c6d",
+                      "event_type": "form.completed",
+                      "record_type": "Submitter",
+                      "record_id": 12,
+                      "status": "error",
+                      "created_at": "2026-09-14T09:00:00.000Z",
+                      "attempts": [
+                        {
+                          "attempt": 1,
+                          "response_status_code": 500,
+                          "created_at": "2026-09-14T09:00:01.000Z"
+                        }
+                      ]
+                    }
+                  ],
+                  "pagination": {
+                    "count": 1,
+                    "next": null,
+                    "prev": null
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/webhooks/{id}/events/{uuid}/resend": {
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Resend a delivery",
+        "description": "Queues the same event again for this webhook.",
+        "operationId": "resendWebhookEvent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the webhook.",
+            "example": 1
+          },
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The delivery's uuid.",
+            "example": "6f3c9f1e-1d4c-4b2e-9c3e-2a1f4a3b5c6d"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queued": {
+                      "type": "boolean"
+                    },
+                    "event_uuid": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "queued",
+                    "event_uuid"
+                  ]
+                },
+                "example": {
+                  "queued": true,
+                  "event_uuid": "6f3c9f1e-1d4c-4b2e-9c3e-2a1f4a3b5c6d"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/webhooks/{id}/test": {
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Send a test delivery",
+        "description": "Queues a `form.completed` payload built from the account's last completed submitter (422 when there is none).",
+        "operationId": "testWebhook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the webhook.",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queued": {
+                      "type": "boolean"
+                    },
+                    "event_uuid": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "queued",
+                    "event_uuid"
+                  ]
+                },
+                "example": {
+                  "queued": true,
+                  "event_uuid": "6f3c9f1e-1d4c-4b2e-9c3e-2a1f4a3b5c6d"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/account_configs": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Account"
+        ],
+        "summary": "List settings",
+        "description": "Every account setting the API can read or change, with its type, stored value and default. Encrypted settings (SMTP, storage, certificates, application URL) are not among them.",
+        "operationId": "listAccountConfigs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "Setting key."
+                          },
+                          "type": {
+                            "type": "string",
+                            "description": "boolean, string or object: the shape `value` must have."
+                          },
+                          "value": {
+                            "description": "The stored value, null when the default applies."
+                          },
+                          "default": {
+                            "description": "The built-in default (e-mail templates), when there is one."
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "type",
+                          "value"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "key": "submitter_invitation_email",
+                      "type": "object",
+                      "value": null,
+                      "default": {
+                        "subject": "You are invited to submit a form",
+                        "body": "Hi there,\n\n..."
+                      }
+                    },
+                    {
+                      "key": "allow_typed_signature",
+                      "type": "boolean",
+                      "value": false
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/account_configs/{key}": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Account"
+        ],
+        "summary": "Get a setting",
+        "description": "One setting.",
+        "operationId": "getAccountConfig",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The setting key (see the list operation).",
+            "example": "allow_typed_signature"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "description": "Setting key."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "boolean, string or object: the shape `value` must have."
+                    },
+                    "value": {
+                      "description": "The stored value, null when the default applies."
+                    },
+                    "default": {
+                      "description": "The built-in default (e-mail templates), when there is one."
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "type",
+                    "value"
+                  ]
+                },
+                "example": {
+                  "key": "submitter_invitation_email",
+                  "type": "object",
+                  "value": null,
+                  "default": {
+                    "subject": "You are invited to submit a form",
+                    "body": "Hi there,\n\n..."
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Account"
+        ],
+        "summary": "Set a setting",
+        "description": "Stores `value`, which must have the setting's type (boolean, string, or object with the documented members; reminders use the instance's duration names). A blank value removes the stored value.",
+        "operationId": "setAccountConfig",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The setting key (see the list operation).",
+            "example": "allow_typed_signature"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "description": "boolean, string or object depending on the key.",
+                    "examples": [
+                      false,
+                      {
+                        "subject": "Merci de signer {{template.name}}",
+                        "body": "..."
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "description": "Setting key."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "boolean, string or object: the shape `value` must have."
+                    },
+                    "value": {
+                      "description": "The stored value, null when the default applies."
+                    },
+                    "default": {
+                      "description": "The built-in default (e-mail templates), when there is one."
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "type",
+                    "value"
+                  ]
+                },
+                "example": {
+                  "key": "allow_typed_signature",
+                  "type": "boolean",
+                  "value": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Account"
+        ],
+        "summary": "Reset a setting",
+        "description": "Removes the stored value; the default applies again.",
+        "operationId": "resetAccountConfig",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The setting key (see the list operation).",
+            "example": "allow_typed_signature"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "description": "Setting key."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "boolean, string or object: the shape `value` must have."
+                    },
+                    "value": {
+                      "description": "The stored value, null when the default applies."
+                    },
+                    "default": {
+                      "description": "The built-in default (e-mail templates), when there is one."
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "type",
+                    "value"
+                  ]
+                },
+                "example": {
+                  "key": "allow_typed_signature",
+                  "type": "boolean",
+                  "value": null
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/template_folders": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "List folders",
+        "description": "Active template folders with their template counts.",
+        "operationId": "listTemplateFolders",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Number of items to return (max 100).",
+            "example": 10
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items after this id (pagination cursor)."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items before this id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "full_name": {
+                            "type": "string",
+                            "description": "\"Parent / Child\" for a subfolder."
+                          },
+                          "parent_folder_id": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "archived_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "templates_count": {
+                            "type": "integer",
+                            "description": "Active templates in the folder."
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "updated_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "full_name",
+                          "parent_folder_id",
+                          "archived_at",
+                          "templates_count",
+                          "created_at",
+                          "updated_at"
+                        ]
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "next": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "prev": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 4,
+                      "name": "Leases",
+                      "full_name": "Contracts / Leases",
+                      "parent_folder_id": 3,
+                      "archived_at": null,
+                      "templates_count": 2,
+                      "created_at": "2026-09-14T09:00:00.000Z",
+                      "updated_at": "2026-09-14T09:00:00.000Z"
+                    }
+                  ],
+                  "pagination": {
+                    "count": 1,
+                    "next": 4,
+                    "prev": 4
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Create a folder",
+        "description": "Creates (or returns the existing) folder; \"Parent / Child\" creates two levels. Move a template with PUT /templates/{id} `folder_name`.",
+        "operationId": "createTemplateFolder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Folder name, or \"Parent / Child\".",
+                    "examples": [
+                      "Contracts / Leases"
+                    ]
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "full_name": {
+                      "type": "string",
+                      "description": "\"Parent / Child\" for a subfolder."
+                    },
+                    "parent_folder_id": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "archived_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "templates_count": {
+                      "type": "integer",
+                      "description": "Active templates in the folder."
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "full_name",
+                    "parent_folder_id",
+                    "archived_at",
+                    "templates_count",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 4,
+                  "name": "Leases",
+                  "full_name": "Contracts / Leases",
+                  "parent_folder_id": 3,
+                  "archived_at": null,
+                  "templates_count": 2,
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/template_folders/{id}": {
+      "put": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Rename a folder",
+        "description": "The default folder cannot be renamed (422).",
+        "operationId": "renameTemplateFolder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the folder.",
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "full_name": {
+                      "type": "string",
+                      "description": "\"Parent / Child\" for a subfolder."
+                    },
+                    "parent_folder_id": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "archived_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "templates_count": {
+                      "type": "integer",
+                      "description": "Active templates in the folder."
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "full_name",
+                    "parent_folder_id",
+                    "archived_at",
+                    "templates_count",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 4,
+                  "name": "Leases",
+                  "full_name": "Contracts / Leases",
+                  "parent_folder_id": 3,
+                  "archived_at": null,
+                  "templates_count": 2,
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Archive a folder",
+        "description": "Archives an empty folder; a folder with active templates or subfolders, and the default folder, are refused (422).",
+        "operationId": "archiveTemplateFolder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the folder.",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "full_name": {
+                      "type": "string",
+                      "description": "\"Parent / Child\" for a subfolder."
+                    },
+                    "parent_folder_id": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "archived_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "templates_count": {
+                      "type": "integer",
+                      "description": "Active templates in the folder."
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "full_name",
+                    "parent_folder_id",
+                    "archived_at",
+                    "templates_count",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 4,
+                  "name": "Leases",
+                  "full_name": "Contracts / Leases",
+                  "parent_folder_id": 3,
+                  "archived_at": "2026-09-14T10:00:00.000Z",
+                  "templates_count": 0,
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "updated_at": "2026-09-14T09:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/templates/{id}/versions": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "List template versions",
+        "description": "Saved states of the template, newest first.",
+        "operationId": "listTemplateVersions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the template.",
+            "example": 1000001
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Number of items to return (max 100).",
+            "example": 10
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items after this id (pagination cursor)."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Return items before this id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "email": {
+                                "type": "string"
+                              },
+                              "full_name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "email"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "created_at",
+                          "author"
+                        ]
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer"
+                        },
+                        "next": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "prev": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "next",
+                        "prev"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 9,
+                      "created_at": "2026-09-14T09:00:00.000Z",
+                      "author": {
+                        "email": "alice@example.com",
+                        "full_name": "Alice Martin"
+                      }
+                    }
+                  ],
+                  "pagination": {
+                    "count": 1,
+                    "next": 9,
+                    "prev": 9
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Save a template version",
+        "description": "Records the current name, schema, submitters, variables and fields; an unchanged template yields the same version.",
+        "operationId": "createTemplateVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the template.",
+            "example": 1000001
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "email": {
+                          "type": "string"
+                        },
+                        "full_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "email"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "created_at",
+                    "author"
+                  ]
+                },
+                "example": {
+                  "id": 9,
+                  "created_at": "2026-09-14T09:00:00.000Z",
+                  "author": {
+                    "email": "alice@example.com",
+                    "full_name": "Alice Martin"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/templates/{id}/versions/{version_id}": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Get a template version",
+        "description": "The version with its data and documents.",
+        "operationId": "getTemplateVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the template.",
+            "example": 1000001
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The version's id.",
+            "example": 9
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "email": {
+                          "type": "string"
+                        },
+                        "full_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "email"
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "submitters": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "variables_schema": {},
+                        "fields": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "dynamic_documents": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "documents": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "schema",
+                        "submitters",
+                        "fields",
+                        "documents"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "created_at",
+                    "author",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/templates/{id}/versions/{version_id}/restore": {
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Restore a template version",
+        "description": "Saves the current state as a version, then puts the version's name, schema, submitters, variables and fields back. Refused (422) when the version refers to a document the template no longer has.",
+        "operationId": "restoreTemplateVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the template.",
+            "example": 1000001
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The version's id.",
+            "example": 9
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "schema": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "submitters": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "preferences": {
+                      "type": "object"
+                    },
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "schema",
+                    "fields",
+                    "submitters",
+                    "documents"
+                  ],
+                  "description": "The template, as GET /templates/{id} returns it."
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/templates/{id}/detect_fields": {
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Detect fields",
+        "description": "Runs the field detector on the template's documents (or one document, one page) and returns the candidates; with `apply` they are added to the first signer, skipping candidates that overlap an existing field. At most 30 pages per request.",
+        "operationId": "detectTemplateFields",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the template.",
+            "example": 1000001
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "attachment_uuid": {
+                    "type": "string",
+                    "description": "Only this document."
+                  },
+                  "page": {
+                    "type": "integer",
+                    "description": "Only this page (1-based)."
+                  },
+                  "apply": {
+                    "type": "boolean",
+                    "description": "Add the candidates to the template (default false).",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "attachment_uuid": {
+                            "type": "string"
+                          },
+                          "pages": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "page": {
+                                  "type": "integer",
+                                  "description": "1-based page number."
+                                },
+                                "fields": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object"
+                                  },
+                                  "description": "Candidate fields in the template's stored shape (areas[].page is 0-based)."
+                                }
+                              },
+                              "required": [
+                                "page",
+                                "fields"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "attachment_uuid",
+                          "pages"
+                        ]
+                      }
+                    },
+                    "applied": {
+                      "type": "integer",
+                      "description": "Number of candidates added to the template (0 unless apply is true)."
+                    }
+                  },
+                  "required": [
+                    "documents",
+                    "applied"
+                  ]
+                },
+                "example": {
+                  "documents": [
+                    {
+                      "attachment_uuid": "c1a2...",
+                      "pages": [
+                        {
+                          "page": 1,
+                          "fields": [
+                            {
+                              "uuid": "...",
+                              "type": "text",
+                              "required": false,
+                              "areas": [
+                                {
+                                  "x": 0.1,
+                                  "y": 0.2,
+                                  "w": 0.3,
+                                  "h": 0.04,
+                                  "page": 0,
+                                  "attachment_uuid": "c1a2..."
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "applied": 0
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/templates/{id}": {
+      "put": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Update a template (fork extension: preferences)",
+        "description": "Upstream's operation (name, folder_name, roles, archived) extended with `preferences`: the per-template preferences of Settings → Preferences (e-mail subjects and bodies, completed_redirect_url, default_expire_at, 2FA requirements, submitters_order, bcc_completed, completed_message, link_form_fields). A null value removes a key; an unknown key is a 422. Read them back with GET /templates/{id}.",
+        "operationId": "updateTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The unique identifier of the template.",
+            "example": 1000001
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "folder_name": {
+                    "type": "string"
+                  },
+                  "roles": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "preferences": {
+                    "type": "object",
+                    "properties": {},
+                    "description": "Keys: bcc_completed, request_email_subject, request_email_body, invitation_view_email_subject, invitation_view_email_body, invitation_reminder_email_subject, invitation_reminder_email_body, documents_copy_email_subject, documents_copy_email_body, documents_copy_email_enabled, documents_copy_email_attach_audit, documents_copy_email_attach_documents, documents_copy_email_reply_to, completed_notification_email_attach_documents, completed_redirect_url, validate_unique_submitters, require_all_submitters, submitters_order, require_phone_2fa, require_email_2fa, default_expire_at_duration, shared_link_2fa, default_expire_at, request_email_enabled, completed_notification_email_subject, completed_notification_email_body, completed_notification_email_enabled, completed_notification_email_attach_audit, completed_message {title, body}, submitters [{uuid, request_email_subject, request_email_body}], link_form_fields []."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "updated_at"
+                  ]
+                },
+                "example": {
+                  "id": 1,
+                  "updated_at": "2026-09-14T10:00:00.000Z"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Unknown setting 'nope'"
+                }
+              }
+            }
+          }
+        },
+        "x-ccn-extends": "docs/openapi.json#/paths/~1templates~1{id}/put"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "AuthToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Auth-Token"
+      }
+    }
+  }
+}

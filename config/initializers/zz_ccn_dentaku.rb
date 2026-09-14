@@ -11,8 +11,7 @@ Rails.configuration.to_prepare do
     Dentaku::AST::Exponentiation.prepend(Ccn::BoundedExponentiation)
   end
 
-  unless prepended.call(Dentaku::AST::BitwiseShiftLeft, 'Ccn::BoundedShift')
-    Dentaku::AST::BitwiseShiftLeft.prepend(Ccn::BoundedShift)
-    Dentaku::AST::BitwiseShiftRight.prepend(Ccn::BoundedShift)
+  [Dentaku::AST::BitwiseShiftLeft, Dentaku::AST::BitwiseShiftRight].each do |klass|
+    klass.prepend(Ccn::BoundedShift) unless prepended.call(klass, 'Ccn::BoundedShift')
   end
 end

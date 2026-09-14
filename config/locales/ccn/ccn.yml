@@ -16,6 +16,7 @@ en:
   ccn_template_not_found: 'Template not found: %{id}'
   ccn_pdf_encrypted: 'The PDF is password protected: pass its password or remove the protection'
   ccn_unsupported_file_type: 'Unsupported file type: %{type}'
+  ccn_download_failed: 'The document could not be downloaded from its URL (%{message})'
 fr:
   ccn_not_available_yet: Pas encore disponible sur cette instance
   ccn_not_available_yet_hint_html: Cette fonctionnalité DocuSeal Pro est en cours de réimplémentation dans le <a class="link" href="%{url}" target="_blank" rel="noopener">fork CCN</a>.
@@ -32,3 +33,4 @@ fr:
   ccn_template_not_found: 'Modèle introuvable : %{id}'
   ccn_pdf_encrypted: 'Le PDF est protégé par mot de passe : indiquez-le ou retirez la protection'
   ccn_unsupported_file_type: 'Type de fichier non pris en charge : %{type}'
+  ccn_download_failed: 'Le document n''a pas pu être téléchargé depuis son URL (%{message})'

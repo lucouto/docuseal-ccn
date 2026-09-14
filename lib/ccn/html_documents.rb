@@ -24,7 +24,7 @@ module Ccn
       sources.each_with_index.map do |source, index|
         raise Ccn::DocumentParams::Invalid, "documents[#{index}][html] is required" if source[:html].blank?
 
-        render(source[:html], name: source[:name].presence || "document-#{index + 1}",
+        render(source[:html], name: source[:name].presence || SecureRandom.uuid, # "Random uuid … when not specified"
                               header: params[:html_header], footer: params[:html_footer], size:)
       end
     end

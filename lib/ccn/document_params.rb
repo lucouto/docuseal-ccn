@@ -50,14 +50,20 @@ module Ccn
       [response.body, filename]
     end
 
+    # `filename` is client-controlled: control characters and path separators go, and only a plausible
+    # extension reaches Tempfile (a 300-character "extension" would raise ENAMETOOLONG).
     def build_uploaded_file(data, filename)
-      tempfile = Tempfile.new(['ccn-document', File.extname(filename)])
+      filename = filename.to_s.gsub(%r{[[:cntrl:]/\\]}, '').squish.presence || 'document'
+      extension = File.extname(filename)
+      extension = '' unless extension.match?(/\A\.[A-Za-z0-9]{1,10}\z/)
+
+      tempfile = Tempfile.new(['ccn-document', extension])
       tempfile.binmode
       tempfile.write(data)
       tempfile.rewind
 
       type = Marcel::MimeType.for(tempfile, name: filename)
-      filename += EXTENSIONS.fetch(type) { Rack::Mime::MIME_TYPES.key(type).to_s } if File.extname(filename).blank?
+      filename += EXTENSIONS.fetch(type) { Rack::Mime::MIME_TYPES.key(type).to_s } if extension.blank?
 
       ActionDispatch::Http::UploadedFile.new(tempfile:, filename:, type:)
     end

@@ -49,7 +49,7 @@ git rebase --onto <new-tag> <old-tag> ccn        # resolve using the table below
 | `app/javascript/template_builder/builder.vue` | Stage 2 — ingestion | one line: a detected field keeps the `submitter_uuid` its tag role assigned (was overwritten with the selected submitter) |
 | `lib/docuseal.rb` | Stage 2 — ingestion | `advanced_formats?` → also true when `GOTENBERG_URL` is set (drop zone / upload button accept DOCX etc.) |
 | `config/routes.rb` | Stage 2 — API | inside `namespace :api`: `POST templates/{pdf,docx,doc,html,merge}`, `PUT templates/:id/documents` → `Api::CcnTemplatesDocumentsController`; `POST submissions/{pdf,docx,html}` → `Api::CcnSubmissionsDocumentsController` |
-| `app/controllers/errors_controller.rb` | Stage 2 — API | `ENTERPRISE_PATHS` / `ENTERPRISE_FEATURE_MESSAGE` (Pro-only 404 for those paths) removed |
+| `app/controllers/errors_controller.rb` | Stage 2 — API | `ENTERPRISE_PATHS` / `ENTERPRISE_FEATURE_MESSAGE` (Pro-only 404 for those paths) removed; the non-`/api` twins (`/templates/pdf`, `/submissions/html`, …) are not routed by the fork and now answer a plain 404 |
 | `spec/requests/openapi_contract_spec.rb` | Stage 2 — API | all 8 Pro operations leave the pending list (now `[]`) and get conforming-response examples |
 
 ## New files owned by the fork

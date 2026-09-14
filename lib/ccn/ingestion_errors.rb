@@ -16,6 +16,16 @@ module Ccn
         render_ccn_error(e.message)
       end
 
+      # A client-supplied documents[].file URL that is unreachable, slow, malformed or not a URL at all.
+      rescue_from Faraday::Error, URI::InvalidURIError, Addressable::URI::InvalidURIError do |e|
+        render_ccn_error(I18n.t('ccn_download_failed', message: e.class.name.demodulize.underscore.humanize.downcase))
+      end
+
+      # A corrupt archive or image inside documents[].file.
+      rescue_from Zip::Error, Vips::Error do |e|
+        render_ccn_error(I18n.t('ccn_invalid_document', message: e.message.to_s.truncate(120)))
+      end
+
       rescue_from Ccn::NotSupportedYet do |e|
         render_ccn_error(I18n.t('ccn_not_supported_yet', feature: e.message))
       end
@@ -39,6 +49,7 @@ module Ccn
     def ccn_invalid_file_type_message(error)
       type = error.message.delete_suffix('/false').delete_suffix('/true')
 
+      return I18n.t('ccn_invalid_document', message: 'zip archive too large') if type == 'zip_too_large'
       return I18n.t('ccn_conversion_unavailable') if Templates::CreateAttachments::DOCUMENT_CONTENT_TYPES.include?(type)
 
       I18n.t('ccn_unsupported_file_type', type:)

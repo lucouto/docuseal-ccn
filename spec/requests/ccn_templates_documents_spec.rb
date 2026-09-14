@@ -96,6 +96,13 @@ describe 'CCN templates API (documents in)' do
       expect(page_texts(Template.last.schema_documents.first).join).to include('{{DOB;type=date}}')
     end
 
+    it 'strips control characters and absurd extensions from a client-supplied document name' do
+      api :post, '/api/templates/pdf', documents: [{ name: "bad\u0000/name.#{'x' * 300}", file: pdf_base64 }]
+
+      expect(response).to have_http_status(:ok)
+      expect(json['documents'].first['filename']).to eq("badname.#{'x' * 300}.pdf")
+    end
+
     it 'downloads an https document and names it after the URL' do
       stub_request(:get, 'https://files.example.com/docs/lease+v2.pdf')
         .to_return(body: pdf_bytes, headers: { 'Content-Type' => 'application/pdf' })
@@ -144,6 +151,11 @@ describe 'CCN templates API (documents in)' do
       api :post, '/api/templates/pdf', documents: [{ name: 'x', file: Base64.strict_encode64('plain text') }]
       expect(response).to have_http_status(:unprocessable_content)
       expect(json['error']).to eq(I18n.t('ccn_unsupported_file_type', type: 'application/octet-stream'))
+
+      stub_request(:get, 'https://files.example.com/slow.pdf').to_timeout
+      api :post, '/api/templates/pdf', documents: [{ file: 'https://files.example.com/slow.pdf' }]
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to match(/could not be downloaded/)
 
       expect(Template.count).to eq(0)
     end

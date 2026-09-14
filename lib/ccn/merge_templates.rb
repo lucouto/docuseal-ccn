@@ -43,12 +43,14 @@ module Ccn
     def append(template, source, roles)
       raise Ccn::NotSupportedYet, 'dynamic documents' if source.schema.any? { |item| item['dynamic'] }
 
+      # The remapped preferences (4th value) are dropped on purpose: template preferences are per template and
+      # merging N of them has no defined meaning; the merged template starts with the defaults.
       submitters, fields, schema, = Templates::Clone.update_submitters_and_fields_and_schema(
         source.submitters.deep_dup, source.fields.deep_dup, source.schema.deep_dup, source.preferences.deep_dup
       )
 
       submitter_map = map_submitters(template, submitters, roles)
-      attachment_map = clone_documents(template, source, schema)
+      attachment_map = clone_documents(template, source, schema, fields)
 
       fields.each do |field|
         field['submitter_uuid'] = submitter_map[field['submitter_uuid']] || template.submitters.first['uuid']
@@ -73,10 +75,12 @@ module Ccn
       end
     end
 
-    # Schema items whose attachment is missing are dropped; the rest get a fresh uuid and a new attachment
-    # on the same blob (+ cloned preview images). Returns old uuid → new uuid.
-    def clone_documents(template, source, schema)
+    # Schema items whose attachment is missing are dropped (with the fields pointing at them); the rest get
+    # a fresh uuid and a new attachment on the same blob (+ cloned preview images). Returns old uuid → new uuid.
+    def clone_documents(template, source, schema, fields)
       originals = source.schema_documents.preload(:blob, :preview_images_attachments).index_by(&:uuid)
+      schema.reject { |item| originals.key?(item['attachment_uuid']) }
+            .each { |item| Ccn::UpdateTemplateDocuments.drop_document_fields(fields, item['attachment_uuid']) }
       schema.select! { |item| originals.key?(item['attachment_uuid']) }
 
       schema.each_with_object({}) do |item, map|

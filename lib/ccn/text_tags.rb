@@ -17,7 +17,7 @@ module Ccn
       return unless extract_fields && data.size < ::Templates::ProcessDocument::MAX_FLATTEN_FILE_SIZE
 
       tag_fields, redactions = detect(doc, attachment_uuid)
-      flatten = flatten?(params) && doc.form?
+      flatten = flatten?(params) && doc.form? && doc.page_count <= ::Templates::FindTextTagFields::MAX_PAGES
 
       return if tag_fields.blank? && !flatten
 
@@ -38,6 +38,7 @@ module Ccn
 
     # API `flatten: true` (POST /templates/pdf, /submissions/pdf): the AcroForm widgets are detected as
     # fields above and then baked into the page content, so the stored PDF has no interactive form left.
+    # Skipped beyond FindTextTagFields::MAX_PAGES (each flattened page keeps a handle open until close).
     def flatten?(params)
       params[:flatten].to_s.casecmp?('true')
     end

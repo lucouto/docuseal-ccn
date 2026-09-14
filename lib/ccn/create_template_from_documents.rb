@@ -81,6 +81,7 @@ module Ccn
 
       attachments = Templates::ReplaceAttachments.call(template, attachment_params, extract_fields: true)
 
+      # ReplaceAttachments writes symbol-keyed items in place; string keys are what everything downstream reads.
       template.schema = template.schema.map { |item| item.to_h.stringify_keys }
       dropped = template.schema.slice!(attachments.size..) || []
       dropped.each do |item|

@@ -25,6 +25,8 @@ module Ccn
       template.reload
     end
 
+    # `replace` at a position that does not exist adds instead (spec.md edge cases): a lenient contract for
+    # scripted callers; `remove` of a missing document is an error because nothing would happen silently.
     def apply(template, document, params)
       if Ccn::DocumentParams.boolean(document[:remove])
         remove(template, document)
@@ -102,11 +104,15 @@ module Ccn
     end
 
     # All schema documents, in order, into one PDF (an image becomes a page, as in the builder); fills
-    # `offsets` with each document's first page index in the merged file.
+    # `offsets` with each document's first page index in the merged file. A schema item whose attachment is
+    # gone is dropped together with the fields that pointed at it (no dangling areas).
     def merged_file(template, offsets)
       documents = template.schema_documents.preload(:blob).index_by(&:uuid)
       default_size = Templates::ModifyDocuments.default_page_size(template.account)
       io = StringIO.new
+
+      template.schema.reject { |item| documents.key?(item['attachment_uuid']) }
+              .each { |item| drop_document_fields(template.fields, item['attachment_uuid']) }
 
       Pdfium.with_instance do
         Pdfium::Document.create do |merged|

@@ -267,7 +267,7 @@ module Submitters
     FORMULA_RESULT_SCALE = 10
     # BigDecimal#precision counts every digit needed to write a number out in plain decimal (1e20 → 21,
     # 1e-20 → 20), so this bounds a referenced value's magnitude in both directions, not just its mantissa.
-    # The operands of ^, << and >> are bounded at evaluation time (config/initializers/zz_ccn_dentaku.rb).
+    # The operands of ^, << and >> are bounded at evaluation time (lib/ccn/formula_bounds.rb).
     FORMULA_MAX_DIGITS = 20
     FORMULA_MAX_RESULT_BITS = 1024 # integral results must stay within a double's range
     # Ruby arithmetic errors that dentaku 4.0.2 does not wrap itself. RangeError covers FloatDomainError.

@@ -30,7 +30,7 @@ module Templates
         next if submitter.blank? || document.metadata.dig('pdf', 'fields').blank?
 
         pdf_fields = document.metadata['pdf'].delete('fields').to_a
-        pdf_fields.each { |f| f['submitter_uuid'] = submitter['uuid'] }
+        pdf_fields.each { |f| f['submitter_uuid'] ||= submitter['uuid'] } # CCN: tag roles win
 
         if index.positive? && pdf_fields.present?
           preview_document = template.schema[index - 1]

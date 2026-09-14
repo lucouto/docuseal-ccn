@@ -65,6 +65,49 @@ specs/001-documents-by-any-route/
 
 ```text
 lib/
+├── ccn.rb                          # Ccn namespace + configuration constants (moved from the initializer; reloadable)
+├── ccn/
+│   ├── gotenberg.rb                 # client: docx_to_pdf(io, filename), html_to_pdf(html, header:, footer:, size:) → PDF bytes; typed errors
+│   ├── office_document.rb           # office? / convert(file) → PDF UploadedFile / error_message(e)
+│   ├── text_tags.rb                 # orchestration in CreateAttachments: acro fields → tags → redact → save; store_fields
+│   ├── assign_roles.rb              # transient 'role' → template.submitters (created in first-appearance order)
+│   ├── html_field_tags.rb           # <x-field …> → hidden {{…;width;height}} markers (Nokogiri)
+│   ├── document_params.rb           # documents[] (base64 | https URL) → UploadedFile list; explicit fields normaliser
+│   ├── create_template_from_documents.rb  # name/folder/external_id upsert + CreateAttachments + schema + fields + roles
+│   ├── merge_templates.rb           # clone documents of N templates, concat schema/fields, remap roles
+│   ├── update_template_documents.rb # add / replace / remove / merge
+│   ├── create_submission_from_documents.rb # transient template → upstream create → detach snapshot (template_id nil)
+│   └── formula_bounds.rb, bounded_exponentiation.rb, bounded_shift.rb, formula_*.rb  # Stage 1 (moved here)
+├── templates/
+│   ├── find_text_tag_fields.rb      # detector: page.text_nodes → tags → fields + redaction rects
+│   ├── create_attachments.rb        # EDIT: office → convert; PDF → Ccn::TextTags before create_document; uuid:
+│   ├── process_document.rb          # EDIT (1 line): submitter_uuid ||= (tag roles survive normalisation)
+│   └── replace_attachments.rb       # EDIT (1 line): same
+app/controllers/application_controller.rb # EDIT: rescue_from Ccn::Gotenberg::Error → 422 / redirect with message
+app/controllers/api/ccn/*` (namespaced controllers mounted on the documented paths), specs under `spec/requests/ccn_*`, `spec/lib/ccn/*`. Upstream edits: 5 files, each ≤ 15 lines, listed in `CCN-CHANGES.md`. No new gems. **PASS** |
+| IV. Verified independently | Request spec per endpoint + lib specs for detector/pre-processor/client; CI; diff-only review per merged slice; S2 gate scripts on staging (`staging-s2-check.sh`). **PASS** |
+| V. Licence/attribution | Untouched by this feature. **PASS** |
+
+Post-design re-check (Phase 1): unchanged, PASS.
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/001-documents-by-any-route/
+├── plan.md              # This file
+├── research.md          # Phase 0: decisions with alternatives
+├── data-model.md        # Phase 1: entities and their shapes
+├── quickstart.md        # Phase 1: how to exercise the feature (CLI / curl) on staging
+├── contracts/README.md  # Phase 1: the 8 operations, error contract, pointer to docs/openapi.json
+└── tasks.md             # Phase 2: ordered task list (speckit-tasks)
+```
+
+### Source Code (repository root)
+
+```text
+lib/
 ├── ccn/
 │   ├── gotenberg.rb                 # NEW client: docx_to_pdf(io, filename), html_to_pdf(html, header:, footer:, size:) → PDF bytes; typed errors
 │   ├── html_field_tags.rb           # NEW: <x-field …> → hidden {{…;width;height}} markers (Nokogiri), returns HTML + page size
@@ -96,7 +139,7 @@ spec/
 spec/fixtures/ccn/fieldtags.pdf                   # NEW: PDF export of the 8 documented tags (generated once with HexaPDF, committed)
 ```
 
-**Structure Decision**: Rails monolith; all new code under `lib/ccn`, one new detector next to its AcroForm sibling in `lib/templates`, controllers under `app/controllers/api/ccn` mounted on the documented paths via `config/routes.rb` (`namespace :api … scope module: :ccn`). Five upstream files edited, listed above.
+**Structure Decision**: Rails monolith; new code is flat under `lib/ccn/*.rb` (no `Ccn::Templates` sub-namespace, which would shadow `::Templates` inside the fork's own code), one detector next to its AcroForm sibling in `lib/templates`, controllers under `app/controllers/api/ccn` mounted on the documented paths via `config/routes.rb`. Upstream files edited: `create_attachments.rb`, `process_document.rb`, `replace_attachments.rb`, `docuseal.rb`, `application_controller.rb`, `errors_controller.rb`, `routes.rb`, the contract spec — all listed in `CCN-CHANGES.md`.
 
 ## Design decisions (summary; rationale in research.md)
 

@@ -1,6 +1,16 @@
 # frozen_string_literal: true
 
 class ApplicationController < ActionController::Base
+  # CCN fork: a document-conversion failure (Gotenberg sidecar) is a clear message, never a 500 (CCN-CHANGES.md).
+  rescue_from Ccn::Gotenberg::Error do |e|
+    message = Ccn::OfficeDocument.error_message(e)
+
+    respond_to do |f|
+      f.json { render json: { error: message }, status: :unprocessable_content }
+      f.any { redirect_back(fallback_location: root_path, alert: message) }
+    end
+  end
+
   BROWSER_LOCALE_REGEXP = /\A\w{2}(?:-\w{2})?/
 
   include ActiveStorage::SetCurrent

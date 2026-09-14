@@ -171,7 +171,7 @@ module Templates
 
         next [] if pdf_fields.blank?
 
-        pdf_fields.each { |f| f['submitter_uuid'] = template.submitters.first['uuid'] }
+        pdf_fields.each { |f| f['submitter_uuid'] ||= template.submitters.first['uuid'] } # CCN: tag roles win
 
         pdf_fields
       end

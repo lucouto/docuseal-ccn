@@ -60,8 +60,9 @@ module Docuseal
     ENV['MULTITENANT'] == 'true'
   end
 
+  # CCN fork: DOCX/ODT/RTF/XLSX uploads are accepted when the Gotenberg sidecar is configured (CCN-CHANGES.md).
   def advanced_formats?
-    multitenant?
+    multitenant? || Ccn::GOTENBERG_URL.present?
   end
 
   def demo?

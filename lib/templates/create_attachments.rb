@@ -51,12 +51,23 @@ module Templates
 
       document_data = decrypt_document(doc) if doc.encrypted?
 
+      # CCN fork: {{text tags}} become fields and are erased from the stored PDF (CCN-CHANGES.md).
+      uuid = SecureRandom.uuid
+      tags = Ccn::TextTags.call(doc, document_data, uuid, params, extract_fields:)
+
+      if tags
+        document_data = tags.data
+        doc = tags.doc
+      end
+
       annotations =
         document_data.size < ANNOTATIONS_SIZE_LIMIT ? Templates::BuildPdfiumAnnotations.call(doc) : []
 
-      document = create_document(template, file, document_data, metadata, annotations)
+      document = create_document(template, file, document_data, metadata, annotations, uuid:)
 
-      Templates::ProcessDocument.call(document, document_data, extract_fields:, doc:)
+      document = Templates::ProcessDocument.call(document, document_data, extract_fields: extract_fields && !tags, doc:)
+
+      tags ? Ccn::TextTags.store_fields(template, document, tags.fields) : document
     rescue Pdfium::PasswordError
       raise PdfEncrypted
     ensure
@@ -71,7 +82,7 @@ module Templates
       io.tap(&:rewind).read
     end
 
-    def create_document(template, file, document_data, metadata, annotations = nil)
+    def create_document(template, file, document_data, metadata, annotations = nil, uuid: nil)
       sha256 = Base64.urlsafe_encode64(Digest::SHA256.digest(document_data))
 
       blob = ActiveStorage::Blob.create_and_upload!(
@@ -86,7 +97,7 @@ module Templates
         content_type: file.content_type
       )
 
-      template.documents.create!(blob:)
+      template.documents.create!({ blob:, uuid: }.compact)
     end
 
     def extract_zip_files(files)
@@ -132,6 +143,11 @@ module Templates
     def handle_file_types(template, file, params, extract_fields:, dynamic: false)
       if file.content_type.include?('image') || file.content_type == PDF_CONTENT_TYPE
         return [handle_pdf_or_image(template, file, file.read, params, extract_fields:), []]
+      end
+
+      # CCN fork: office documents are converted to PDF by the Gotenberg sidecar (CCN-CHANGES.md).
+      if !dynamic && Ccn::Gotenberg.configured? && Ccn::OfficeDocument.office?(file)
+        return [handle_pdf_or_image(template, Ccn::OfficeDocument.convert(file), nil, params, extract_fields:), []]
       end
 
       raise InvalidFileType, "#{file.content_type}/#{dynamic}"

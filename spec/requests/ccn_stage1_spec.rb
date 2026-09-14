@@ -11,7 +11,7 @@ describe 'CCN Stage 1' do
 
   # Strings and hosts that only appear in DocuSeal's own upsell UI (resolved at runtime, locale-aware).
   let(:upsell_markers) do
-    [I18n.t('unlock_with_docuseal_pro'), 'docuseal.com/pricing', Docuseal::CONSOLE_URL,
+    [I18n.t('unlock_with_docuseal_pro'), I18n.t('upgrade'), 'docuseal.com/pricing', Docuseal::CONSOLE_URL,
      "#{Docuseal::CLOUD_URL}/sign_up"]
   end
 
@@ -89,7 +89,7 @@ describe 'CCN Stage 1' do
 
     it 'computes numeric and text formulas server-side and drops values whose condition is false' do
       put "/s/#{submitter.slug}", params: {
-        completed: 'true', cast_number: 'true',
+        completed: 'true',
         values: { uuids['a'] => '2', uuids['b'] => '3.25', uuids['bonus'] => 'should be dropped' }
       }
 
@@ -116,12 +116,43 @@ describe 'CCN Stage 1' do
       expect(submitter.reload.values[uuids['total']]).to eq(3)
     end
 
-    it 'refuses to complete when a formula cannot be evaluated' do
+    it 'uses the first item of an array value, like a single-choice multiple field' do
+      template.update!(fields: template.fields.map do |f|
+        case f['name']
+        when 'b' then f.merge('type' => 'multiple', 'options' => [{ 'uuid' => SecureRandom.uuid, 'value' => '3' }])
+        when 'total' then f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} * {{#{uuids['b']}}}" })
+        else f
+        end
+      end)
+
+      put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '2', uuids['b'] => ['3'] } }
+
+      expect(response).to have_http_status(:ok)
+      expect(submitter.reload.values[uuids['total']]).to eq(6)
+    end
+
+    it 'refuses to complete when a formula divides by zero' do
       template.update!(fields: template.fields.map do |f|
         f['name'] == 'total' ? f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} / 0" }) : f
       end)
 
       put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '2', uuids['b'] => '1' } }
+
+      expect(I18n.exists?(:ccn_formula_error_zero_division)).to be(true)
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_zero_division'))
+      expect(submitter.reload.completed_at).to be_nil
+    end
+
+    it 'refuses to complete when a formula has no real result, instead of failing with a 500' do
+      template.update!(fields: template.fields.map do |f|
+        f['name'] == 'total' ? f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} ^ {{#{uuids['b']}}}" }) : f
+      end)
+
+      # cast_number is what number_step.vue sends: -8 arrives as an Integer and 0.5 as a Float.
+      put "/s/#{submitter.slug}", params: {
+        completed: 'true', cast_number: 'true', values: { uuids['a'] => '-8', uuids['b'] => '0.5' }
+      }
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body['error']).to start_with(I18n.t('ccn_formula_error', message: '').strip)

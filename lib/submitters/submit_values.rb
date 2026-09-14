@@ -259,12 +259,15 @@ module Submitters
     # CCN fork: upstream ships this as a stub returning 0 (the Pro engine overrides it). The signing form
     # evaluates the same grammar client-side with a JavaScript port of Dentaku, so Dentaku is the
     # server-side counterpart. Field values are bound as numeric variables, never spliced into the
-    # expression text, and every {{uuid}} that is blank, non-numeric, an array or a boolean counts as 0 —
+    # expression text, and every {{uuid}} that is blank, non-numeric or a boolean counts as 0 (arrays: first item) —
     # the same rule as numericFormulaValue in submission_form/formula_areas.vue. Errors raise
     # ValidationError (HTTP 422 to the signer) rather than storing a wrong number in a document that is
     # about to be signed.
     FORMULA_NUMBER_REGEXP = /\A-?\d+(\.\d+)?\z/
     FORMULA_RESULT_SCALE = 10
+    # Ruby arithmetic errors that dentaku 4.0.2 does not wrap itself (e.g. Math::DomainError from
+    # BigDecimal#** with a negative base and a fractional exponent). RangeError covers FloatDomainError.
+    FORMULA_ERRORS = [Dentaku::Error, ::Math::DomainError, ::ZeroDivisionError, ::RangeError].freeze
 
     def calculate_formula_value(formula, values)
       variables = {}
@@ -278,13 +281,19 @@ module Submitters
       end
 
       normalize_formula_result(Dentaku::Calculator.new.evaluate!(expression, variables))
-    rescue Dentaku::Error => e
-      raise ValidationError, I18n.t('ccn_formula_error', message: e.message)
+    rescue *FORMULA_ERRORS => e
+      raise ValidationError, formula_error_message(e)
     end
 
+    # Floats are bound as BigDecimal so every operand is exact and BigDecimal#** rejects a negative base
+    # with a fractional exponent (Math::DomainError) instead of returning a Complex the way Float#** does.
+    # A single-valued array (select / multiple field) counts as its first element.
     def numeric_formula_value(value)
+      value = value.first if value.is_a?(Array)
+
       case value
-      when Numeric then value
+      when Integer then value
+      when Numeric then value.finite? ? BigDecimal(value.to_s) : 0
       when String then value.strip.match?(FORMULA_NUMBER_REGEXP) ? BigDecimal(value.strip) : 0
       else 0
       end
@@ -293,11 +302,32 @@ module Submitters
     def normalize_formula_result(result)
       return result unless result.is_a?(Numeric)
       return result if result.is_a?(Integer)
-      raise ValidationError, I18n.t('ccn_formula_error', message: 'result is not a number') unless result.finite?
+      raise ValidationError, formula_error_message(:not_a_number) unless result.real? && result.finite?
 
       rounded = BigDecimal(result.to_s).round(FORMULA_RESULT_SCALE)
 
-      rounded.frac.zero? ? rounded.to_i : rounded.to_f
+      return rounded.to_i if rounded.frac.zero?
+
+      float = rounded.to_f
+
+      raise ValidationError, formula_error_message(:not_a_number) unless float.finite?
+
+      float
+    rescue ArgumentError, TypeError
+      raise ValidationError, formula_error_message(:not_a_number)
+    end
+
+    def formula_error_message(error)
+      case error
+      when :not_a_number, ::FloatDomainError
+        I18n.t('ccn_formula_error_not_a_number')
+      when ::ZeroDivisionError
+        I18n.t('ccn_formula_error_zero_division')
+      else
+        text = error.message.to_s.presence || error.class.name.demodulize
+
+        I18n.t('ccn_formula_error', message: text)
+      end
     end
 
     # CCN fork: upstream stub returned ''. Mirrors evalTextFormula in submission_form/formula_areas.vue:

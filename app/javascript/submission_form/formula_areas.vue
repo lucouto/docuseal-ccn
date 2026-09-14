@@ -90,8 +90,10 @@ export default {
       })
     },
     numericFormulaValue (value) {
-      if (typeof value === 'number') return Number.isFinite(value) ? value : 0.0
-      if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim())) return parseFloat(value)
+      const item = Array.isArray(value) ? value[0] : value
+
+      if (typeof item === 'number') return Number.isFinite(item) ? item : 0.0
+      if (typeof item === 'string' && /^-?\d+(\.\d+)?$/.test(item.trim())) return parseFloat(item)
 
       return 0.0
     },
@@ -100,7 +102,11 @@ export default {
         return this.numericFormulaValue(this.readonlyValues[uuid] ?? this.values[uuid])
       })
 
-      return this.math.evaluate(transformedFormula.toLowerCase())
+      const result = this.math.evaluate(transformedFormula.toLowerCase())
+
+      // Same 10-decimal rounding as normalize_formula_result in lib/submitters/submit_values.rb, so the
+      // preview on the signing page matches the value stored on completion.
+      return typeof result === 'number' && Number.isFinite(result) ? parseFloat(result.toFixed(10)) : result
     },
     evalTextFormula (field, depth = 0) {
       if (depth > 10) return ''

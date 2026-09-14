@@ -37,7 +37,7 @@ describe Ccn::DocumentParams do
 
     it 'raises Invalid for a missing or undecodable file' do
       expect { described_class.files_from([{ name: 'x' }]) }
-        .to raise_error(described_class::Invalid, /file is required/)
+        .to raise_error(described_class::Invalid, /\[file\] is required/)
       expect { described_class.files_from([{ file: '%%%not base64%%%' }]) }
         .to raise_error(described_class::Invalid, /not valid base64/)
     end
@@ -65,15 +65,15 @@ describe Ccn::DocumentParams do
 
     it 'creates a submitter for a new role and reuses the first one when no role is given' do
       expect(result.first['submitter_uuid']).to eq(template.submitters.last['uuid'])
-      expect(template.submitters.map { |s| s['name'] }).to eq(['First Party', 'Tenant'])
+      expect(template.submitters.pluck('name')).to eq(['First Party', 'Tenant'])
       expect(result.last['submitter_uuid']).to eq(template.submitters.first['uuid'])
     end
 
     it 'maps area options onto option uuids, creating options on the fly' do
       plan = result.last
 
-      expect(plan['options'].map { |o| o['value'] }).to eq(%w[Basic Plus])
-      expect(plan['areas'].map { |a| a['option_uuid'] }).to eq(plan['options'].map { |o| o['uuid'] })
+      expect(plan['options'].pluck('value')).to eq(%w[Basic Plus])
+      expect(plan['areas'].pluck('option_uuid')).to eq(plan['options'].pluck('uuid'))
     end
 
     it 'defaults required to true and omits readonly unless set' do

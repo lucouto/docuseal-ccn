@@ -21,7 +21,7 @@ module Ccn
   }.freeze
 
   # The published API default is Letter; this instance may override it (CCN: A4) — FORK-PLAN.md §9.7.
-  DEFAULT_PAGE_SIZE = PAGE_SIZES.key?(ENV['CCN_DEFAULT_PAGE_SIZE'].to_s) ? ENV['CCN_DEFAULT_PAGE_SIZE'] : 'Letter'
+  DEFAULT_PAGE_SIZE = ENV.fetch('CCN_DEFAULT_PAGE_SIZE', nil).then { |size| PAGE_SIZES.key?(size) ? size : 'Letter' }
 
   # Documented HTTP 422 for options the fork does not implement yet (dynamic DOCX, variables, template_ids).
   NotSupportedYet = Class.new(StandardError)

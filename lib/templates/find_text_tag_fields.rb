@@ -15,7 +15,7 @@ module Templates
     MAX_PAGES = 200
 
     Tag = Struct.new(:name, :type, :role, :options, :required, :readonly, :default_value, :format,
-                     :page, :box, :redact_rect, keyword_init: true)
+                     :page, :box, :redact_rect)
 
     module_function
 
@@ -76,15 +76,7 @@ module Templates
     end
 
     def build_tag(attrs, nodes, page, page_index)
-      x = nodes.map(&:x).min
-      y = nodes.map(&:y).min
-      w = nodes.map(&:endx).max - x
-      h = nodes.map(&:endy).max - y
-
-      width = attrs['width'].to_f
-      height = attrs['height'].to_f
-      pad_x = REDACTION_PADDING_PT / page.width
-      pad_y = REDACTION_PADDING_PT / page.height
+      box, redact_rect = tag_boxes(attrs, nodes, page)
 
       Tag.new(
         name: attrs['name'],
@@ -95,12 +87,30 @@ module Templates
         readonly: attrs['readonly'].to_s.casecmp?('true'),
         default_value: attrs['default'].presence,
         format: attrs['format'].presence,
-        page: page_index,
-        box: { 'x' => x, 'y' => y,
-               'w' => width.positive? ? width / page.width : w,
-               'h' => height.positive? ? height / page.height : h },
-        redact_rect: { 'x' => x - pad_x, 'y' => y - pad_y, 'w' => w + (2 * pad_x), 'h' => h + (2 * pad_y) }
+        page: page_index, box:, redact_rect:
       )
+    end
+
+    # Field box = the union of the tag's characters (page-normalized), unless width/height in points override
+    # it, anchored at the tag's top-left. The redaction rectangle is always the character union, padded.
+    # @return [Array(Hash, Hash)] [box, redact_rect]
+    def tag_boxes(attrs, nodes, page)
+      x = nodes.map(&:x).min
+      y = nodes.map(&:y).min
+      w = nodes.map(&:endx).max - x
+      h = nodes.map(&:endy).max - y
+
+      width = attrs['width'].to_f
+      height = attrs['height'].to_f
+      pad_x = REDACTION_PADDING_PT / page.width
+      pad_y = REDACTION_PADDING_PT / page.height
+
+      box = { 'x' => x, 'y' => y,
+              'w' => width.positive? ? width / page.width : w,
+              'h' => height.positive? ? height / page.height : h }
+      redact_rect = { 'x' => x - pad_x, 'y' => y - pad_y, 'w' => w + (2 * pad_x), 'h' => h + (2 * pad_y) }
+
+      [box, redact_rect]
     end
 
     def tag_type(attrs)

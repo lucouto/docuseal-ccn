@@ -47,7 +47,7 @@ module Ccn
 
       form = [
         ['files', StringIO.new(html.to_s), { filename: 'index.html', content_type: 'text/html' }],
-        ['paperWidth', width.to_s], ['paperHeight', height.to_s], ['printBackground', 'true']
+        ['paperWidth', width.to_s], ['paperHeight', height.to_s], %w[printBackground true]
       ]
       form << ['files', StringIO.new(header), { filename: 'header.html', content_type: 'text/html' }] if header.present?
       form << ['files', StringIO.new(footer), { filename: 'footer.html', content_type: 'text/html' }] if footer.present?
@@ -59,8 +59,10 @@ module Ccn
       raise Unavailable, 'GOTENBERG_URL is not configured' unless configured?
 
       uri = URI.parse("#{Ccn::GOTENBERG_URL}/#{path}")
+      boundary = "ccn-#{SecureRandom.hex(16)}"
       request = Net::HTTP::Post.new(uri)
-      request.set_form(form, 'multipart/form-data')
+      request['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
+      request.body = multipart_body(form, boundary)
 
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https', open_timeout: OPEN_TIMEOUT,
                                                      read_timeout: READ_TIMEOUT, write_timeout: READ_TIMEOUT) do |http|
@@ -74,6 +76,29 @@ module Ccn
       raise TimedOut, e.message
     rescue *CONNECTION_ERRORS => e
       raise Unavailable, e.message
+    end
+
+    # form = [[name, value], [name, io_or_string, { filename:, content_type: }], ...]. Net::HTTP#set_form only
+    # encodes the multipart body while sending, so nothing that inspects the request (WebMock in CI, logging)
+    # sees it; encoding it here keeps the body a plain binary string. Everything is concatenated as bytes so a
+    # non-ASCII filename and binary file content never meet in one encoding.
+    def multipart_body(form, boundary)
+      parts = form.map do |name, value, opts|
+        head = "Content-Disposition: form-data; name=\"#{name}\""
+
+        if opts
+          content_type = opts[:content_type] || 'application/octet-stream'
+          head += "; filename=\"#{opts[:filename]}\"\r\nContent-Type: #{content_type}"
+          value.rewind if value.respond_to?(:rewind)
+          content = value.respond_to?(:read) ? value.read : value.to_s
+        else
+          content = value.to_s
+        end
+
+        "--#{boundary}\r\n#{head}\r\n\r\n".b + content.to_s.b + "\r\n".b
+      end
+
+      parts.join + "--#{boundary}--\r\n".b
     end
   end
 end

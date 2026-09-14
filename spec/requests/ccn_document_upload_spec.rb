@@ -18,7 +18,7 @@ describe 'CCN document upload (builder)' do
 
   def page_texts(attachment)
     Pdfium::Document.open_io(StringIO.new(attachment.download)) do |doc|
-      doc.page_count.times.map { |i| doc.get_page(i).text_nodes.map(&:content).join }
+      Array.new(doc.page_count) { |i| doc.get_page(i).text_nodes.map(&:content).join }
     end
   end
 
@@ -29,23 +29,25 @@ describe 'CCN document upload (builder)' do
       template = Template.last
 
       expect(response).to redirect_to(edit_template_path(template))
-      expect(template.fields.map { |f| f['name'] }).to match_array(expected_names)
-      expect(template.submitters.map { |s| s['name'] }).to eq(['First Party', 'Signer2'])
+      expect(template.fields.pluck('name')).to match_array(expected_names)
+      expect(template.submitters.pluck('name')).to eq(['First Party', 'Signer2'])
 
-      first_party, signer2 = template.submitters.map { |s| s['uuid'] }
+      first_party, signer2 = template.submitters.pluck('uuid')
       by_name = template.fields.index_by { |f| f['name'] }
 
       expect(by_name['FIeld2']['submitter_uuid']).to eq(signer2)
       expect(by_name['Test']['submitter_uuid']).to eq(signer2)
       expect(by_name['Text Field']['submitter_uuid']).to eq(first_party)
-      expect(by_name['Text Field']['areas'].map { |a| a['page'] }).to eq([0, 1])
+      expect(by_name['Text Field']['areas'].pluck('page')).to eq([0, 1])
       expect(by_name['Name']).to include('readonly' => true, 'default_value' => 'Bob')
 
       document = template.schema_documents.first
       texts = page_texts(document)
 
-      expect(texts.join).not_to include('{{')
-      expect(texts.first).to include('Tenant name')
+      # The fixture keeps a deliberate unclosed '{{' on page 2, so only complete tags must be gone. Redacted
+      # lines lose their spaces in extracted text (upstream Page#redact rebuilds glyph by glyph).
+      expect(texts.join).not_to match(Templates::FindTextTagFields::TAG_REGEXP)
+      expect(texts.first.delete(' ')).to include('Tenantname:')
       expect(document.metadata.dig('pdf', 'number_of_pages')).to eq(2)
       expect(document.preview_images.count).to eq(2)
     end
@@ -84,10 +86,10 @@ describe 'CCN document upload (builder)' do
 
       expect(stub).to have_been_requested
       expect(template.name).to eq('fieldtags')
-      expect(template.fields.map { |f| f['name'] }).to match_array(expected_names)
+      expect(template.fields.pluck('name')).to match_array(expected_names)
       expect(document.filename.to_s).to eq('fieldtags.pdf')
       expect(document.content_type).to eq('application/pdf')
-      expect(page_texts(document).join).not_to include('{{')
+      expect(page_texts(document).join).not_to match(Templates::FindTextTagFields::TAG_REGEXP)
     end
 
     it 'answers the builder JSON endpoint with a clear error when the sidecar is unreachable' do

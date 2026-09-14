@@ -50,7 +50,7 @@ module Ccn
       attributes << "width=#{(width_px * PX_TO_PT).round(2)}" << "height=#{(height_px * PX_TO_PT).round(2)}"
 
       wrapper = doc.create_element('span')
-      wrapper['style'] = "display:inline-block;position:relative;vertical-align:top;" \
+      wrapper['style'] = 'display:inline-block;position:relative;vertical-align:top;' \
                          "width:#{width_px}px;height:#{height_px}px;#{node['style']}"
       wrapper['data-ccn-field'] = type
 

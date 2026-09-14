@@ -57,12 +57,7 @@ module Ccn
     def normalize_explicit_fields(fields, template, attachment_uuid)
       Array.wrap(fields).each_with_index.map do |field, index|
         field = indifferent(field)
-        name = field[:name].to_s.squish
-        type = field[:type].presence || 'text'
-
-        raise Invalid, "fields[#{index}][name] is required" if name.blank?
-        raise Invalid, "fields[#{index}][type] '#{type}' is not supported" unless FIELD_TYPES.include?(type)
-
+        name, type = field_name_and_type!(field, index)
         options = Array.wrap(field[:options]).map { |value| { 'uuid' => SecureRandom.uuid, 'value' => value.to_s } }
         areas = Array.wrap(field[:areas]).map do |area|
           normalize_area(indifferent(area), options, attachment_uuid, index)
@@ -80,6 +75,16 @@ module Ccn
           'areas' => areas
         }.compact
       end
+    end
+
+    def field_name_and_type!(field, index)
+      name = field[:name].to_s.squish
+      type = field[:type].presence || 'text'
+
+      raise Invalid, "fields[#{index}][name] is required" if name.blank?
+      raise Invalid, "fields[#{index}][type] '#{type}' is not supported" unless FIELD_TYPES.include?(type)
+
+      [name, type]
     end
 
     def normalize_area(area, options, attachment_uuid, field_index)

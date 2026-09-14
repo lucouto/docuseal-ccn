@@ -7,11 +7,16 @@ describe Templates::FindTextTagFields do
   let(:fields) { result.first }
   let(:redactions) { result.last }
   let(:by_name) { fields.index_by { |f| f['name'] } }
+  # The fixture is A4 (HexaPDF's default page size); the detector normalizes by the real page box.
+  let(:page_size) do
+    Pdfium::Document.open_io(StringIO.new(data)) { |doc| [doc.get_page(1).width, doc.get_page(1).height] }
+  end
 
   it 'finds the 8 documented fields with their types, roles and attributes' do
-    expect(fields.map { |f| f['name'] })
+    expect(fields.pluck('name'))
       .to contain_exactly('Text Field', 'Field1', 'FIeld2', 'DOB', 'Signature', 'Sign here', 'Name', 'Test')
-    expect(by_name['Text Field']).to include('type' => 'text', 'required' => true, 'role' => nil)
+    expect(by_name['Text Field']).to include('type' => 'text', 'required' => true)
+    expect(by_name['Text Field']).not_to have_key('role')
     expect(by_name['Field1']).to include('type' => 'text', 'role' => 'First Party')
     expect(by_name['FIeld2']).to include('role' => 'Signer2')
     expect(by_name['DOB']).to include('type' => 'date')
@@ -25,16 +30,18 @@ describe Templates::FindTextTagFields do
   it 'merges repeated tags with the same name and role into one field with several areas' do
     areas = by_name['Text Field']['areas']
 
-    expect(areas.map { |a| a['page'] }).to eq([0, 1])
+    expect(areas.pluck('page')).to eq([0, 1])
     expect(areas).to all(include('attachment_uuid' => attachment_uuid))
-    expect(fields.map { |f| f['uuid'] }.uniq.size).to eq(fields.size)
+    expect(fields.pluck('uuid').uniq.size).to eq(fields.size)
   end
 
   it 'uses width and height in points for the field box, anchored at the tag' do
     area = by_name['Test']['areas'].first
+    page_width, page_height = page_size
 
-    expect(area['w']).to be_within(0.001).of(200.0 / 612)
-    expect(area['h']).to be_within(0.001).of(30.0 / 792)
+    expect(page_size.map(&:round)).to eq([595, 842])
+    expect(area['w']).to be_within(0.001).of(200.0 / page_width)
+    expect(area['h']).to be_within(0.001).of(30.0 / page_height)
     expect(area['page']).to eq(1)
     expect(area['x']).to be_between(0, 1)
   end
@@ -47,7 +54,7 @@ describe Templates::FindTextTagFields do
   end
 
   it 'ignores an unclosed tag' do
-    expect(fields.map { |f| f['name'] }.grep(/never closes/)).to be_empty
+    expect(fields.pluck('name').grep(/never closes/)).to be_empty
   end
 
   it 'returns one redaction rectangle per tag occurrence, per page' do
@@ -69,10 +76,12 @@ describe Templates::FindTextTagFields do
     end
 
     Pdfium::Document.open_io(StringIO.new(io.string)) do |doc|
-      texts = doc.page_count.times.map { |i| doc.get_page(i).text_nodes.map(&:content).join }
+      texts = Array.new(doc.page_count) { |i| doc.get_page(i).text_nodes.map(&:content).join }
 
       expect(texts.join).not_to include('{{Text Field}}', '{{DOB', 'width=200')
-      expect(texts.first).to include('Tenant name')
+      # Upstream's Page#redact rebuilds a partially redacted text object one glyph at a time and drops the
+      # blank ones, so the extracted text of a redacted line loses its spaces (the rendering does not).
+      expect(texts.first.delete(' ')).to include('Tenantname:', 'Dateofbirth:')
       expect(texts.last).to include('Prefilled')
     end
   end

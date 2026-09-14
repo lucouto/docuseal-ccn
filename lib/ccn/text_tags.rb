@@ -5,7 +5,7 @@ module Ccn
   # AcroForm fields first (redaction flattens the widgets), then Templates::FindTextTagFields, then the
   # tags are erased with Page#redact and the document saved — the stored blob is the redacted PDF.
   module TextTags
-    Result = Struct.new(:fields, :data, :doc, keyword_init: true)
+    Result = Struct.new(:fields, :data, :doc)
     AttachmentStub = Struct.new(:uuid)
 
     module_function

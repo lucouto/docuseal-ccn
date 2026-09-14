@@ -181,7 +181,9 @@
         </div>
       </div>
       <%= render 'templates_code_modal/placeholder' %>
-      <%= render 'templates/embedding', template: @template %>
+      <% if Ccn::EMBEDDING_ENABLED %>
+        <%= render 'templates/embedding', template: @template %>
+      <% end %>
       <% if can?(:manage, TemplateSharing.new(template: @template)) %>
         <%= form_for '', url: template_sharings_testing_index_path, method: :post, html: { class: 'mt-1' }, data: { close_on_submit: false } do |f| %>
           <%= f.hidden_field :template_id, value: @template.id %>

@@ -17,7 +17,9 @@
       <%= render 'shared/clipboard_copy', icon: 'copy', text: start_form_url(slug: @template.slug), class: 'base-button', icon_class: 'w-6 h-6 text-white', copy_title: t('copy'), copied_title: t('copied') %>
     </div>
   </div>
-  <%= render 'templates/embedding', template: @template %>
+  <% if Ccn::EMBEDDING_ENABLED %>
+    <%= render 'templates/embedding', template: @template %>
+  <% end %>
   <% if can?(:manage, TemplateSharing.new(template: @template)) %>
     <%= form_for '', url: template_sharings_testing_index_path, method: :post, html: { class: 'mt-1' } do |f| %>
       <%= f.hidden_field :template_id, value: @template.id %>

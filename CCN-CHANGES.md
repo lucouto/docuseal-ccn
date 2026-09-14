@@ -32,6 +32,8 @@ git rebase --onto <new-tag> <old-tag> ccn        # resolve using the table below
 | `app/javascript/application.js` | Stage 1 — builder | maps `data-field-types` → `fieldTypes` prop (prop existed, was never wired for the ERB element) |
 | `app/views/shared/_settings_nav.html.erb` | Stage 1 — de-Pro | Plans/Console entries multitenant-only; SSO/SMS behind `Ccn::SSO_ENABLED`/`SMS_ENABLED`; version badge → fork release |
 | `app/views/shared/_navbar_buttons.html.erb` | Stage 1 — de-Pro | "Upgrade" button on /settings removed |
+| `app/views/shared/_navbar.html.erb` | Stage 1 — de-Pro | user-menu "Console" entry (→ console.docuseal.com) multitenant-only |
+| `app/views/templates_preferences/show.html.erb`, `app/views/templates_code_modal/show.html.erb` | Stage 1 — de-Pro | `templates/embedding` snippets behind `Ccn::EMBEDDING_ENABLED` (embed script is a stub here; snippets link to the cloud console) |
 | `app/views/shared/_powered_by.html.erb` | Stage 1 — AGPL §13 | adds the source-code link next to the DocuSeal attribution (attribution kept, §7(b)) |
 | `app/views/users/_role_select.html.erb` | Stage 1 — de-Pro | upsell link removed (roles come with Stage 4) |
 | `app/views/sso_settings/_placeholder.html.erb`, `sms_settings/_placeholder.html.erb`, `templates_code_modal/_placeholder.html.erb` | Stage 1 — de-Pro | render `shared/ccn_not_yet` |

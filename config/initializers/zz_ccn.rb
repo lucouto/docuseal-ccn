@@ -14,6 +14,8 @@ module Ccn
   # Settings entries hidden until the corresponding feature is implemented in the fork (FORK-PLAN.md P2).
   SSO_ENABLED = ENV['CCN_SSO_ENABLED'] == 'true'
   SMS_ENABLED = ENV['CCN_SMS_ENABLED'] == 'true'
+  # Embedding docs/snippets point at DocuSeal's cloud console and the embed script is a stub here (P2).
+  EMBEDDING_ENABLED = ENV['CCN_EMBEDDING_ENABLED'] == 'true'
 end
 
 # Fork strings, loaded after upstream's config/locales/i18n.yml so they can add or override keys.

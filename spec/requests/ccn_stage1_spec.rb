@@ -41,13 +41,15 @@ describe 'CCN Stage 1' do
         "/submissions/#{submission.id}"
       ]
 
-      paths.each do |path|
-        get path
+      aggregate_failures do
+        paths.each do |path|
+          get path
 
-        expect(response).to have_http_status(:ok), "#{path} → #{response.status}"
+          expect(response).to have_http_status(:ok), "#{path} → #{response.status}"
 
-        upsell_markers.each do |marker|
-          expect(response.body).not_to include(marker), "#{path} still contains #{marker.inspect}"
+          upsell_markers.each do |marker|
+            expect(response.body).not_to include(marker), "#{path} still contains #{marker.inspect}"
+          end
         end
       end
     end

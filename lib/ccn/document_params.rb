@@ -11,6 +11,8 @@ module Ccn
     DATA_URI_REGEXP = /\Adata:[^;,]*(?:;[^,]*)?,/i
     FIELD_TYPES = %w[text signature initials date number image checkbox multiple file radio select cells stamp
                      phone heading strikethrough].freeze
+    # ActiveStorage's filename column is 255 bytes on some databases; room is left for the detected extension.
+    MAX_FILENAME_BYTES = 200
     # Extension given to a base64 upload without a name (Rack::Mime's reverse lookup is first-match: .jpe).
     EXTENSIONS = {
       'application/pdf' => '.pdf', 'image/png' => '.png', 'image/jpeg' => '.jpg', 'image/gif' => '.gif',
@@ -43,19 +45,30 @@ module Ccn
       raise Invalid, "documents[#{index}][file] is not valid base64 (or an https URL)"
     end
 
+    # Unreachable, slow, malformed or not a URL at all → Invalid with a translated reason, raised where the
+    # download happens (the ingestion controllers rescue nothing wider than Invalid for it).
     def download(url)
       response = DownloadUtils.call(url, validate: true)
       filename = File.basename(CGI.unescapeURIComponent(URI.parse(url).path.to_s))
 
       [response.body, filename]
+    rescue URI::InvalidURIError, Addressable::URI::InvalidURIError
+      raise Invalid, I18n.t('ccn_invalid_url')
+    rescue Faraday::TimeoutError
+      raise Invalid, I18n.t('ccn_download_timeout')
+    rescue Faraday::Error
+      raise Invalid, I18n.t('ccn_download_failed')
     end
 
-    # `filename` is client-controlled: control characters and path separators go, and only a plausible
-    # extension reaches Tempfile (a 300-character "extension" would raise ENAMETOOLONG).
+    # `filename` is client-controlled: control characters and path separators go, only a plausible extension
+    # reaches Tempfile (a 300-character "extension" would raise ENAMETOOLONG) and the name is cut to
+    # MAX_FILENAME_BYTES.
     def build_uploaded_file(data, filename)
       filename = filename.to_s.gsub(%r{[[:cntrl:]/\\]}, '').squish.presence || 'document'
       extension = File.extname(filename)
       extension = '' unless extension.match?(/\A\.[A-Za-z0-9]{1,10}\z/)
+      base = File.basename(filename, extension).truncate_bytes(MAX_FILENAME_BYTES, omission: '')
+      filename = "#{base}#{extension}"
 
       tempfile = Tempfile.new(['ccn-document', extension])
       tempfile.binmode

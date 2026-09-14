@@ -20,14 +20,19 @@ module Ccn
       raise Ccn::DocumentParams::Invalid, 'html (or documents[].html) is required' if sources.empty?
 
       # header / footer / size: per document when given there (POST /submissions/html declares them per
-      # document), else the request-level values (POST /templates/html).
-      sources.each_with_index.map do |source, index|
+      # document), else the request-level values (POST /templates/html). Every source is validated before the
+      # first render: a bad size on the last document must not cost the renders before it.
+      sources = sources.each_with_index.map do |source, index|
         raise Ccn::DocumentParams::Invalid, "documents[#{index}][html] is required" if source[:html].blank?
 
+        source.merge(size: page_size(source[:size].presence || params[:size]))
+      end
+
+      sources.map do |source|
         render(source[:html], name: source[:name].presence || SecureRandom.uuid, # "Random uuid … when not specified"
                               header: source[:html_header].presence || params[:html_header],
                               footer: source[:html_footer].presence || params[:html_footer],
-                              size: page_size(source[:size].presence || params[:size]))
+                              size: source[:size])
       end
     end
 

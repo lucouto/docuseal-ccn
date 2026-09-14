@@ -14,10 +14,14 @@ module Ccn
 
     # @return [Result, nil] nil when nothing applies (no extraction, document too large, no tags and no flatten)
     def call(doc, data, attachment_uuid, params, extract_fields:)
-      return unless extract_fields && data.size < ::Templates::ProcessDocument::MAX_FLATTEN_FILE_SIZE
+      return unless extract_fields
+
+      flatten = flatten?(params) && doc.form?
+      check_flatten!(doc, data) if flatten
+
+      return if data.size >= ::Templates::ProcessDocument::MAX_FLATTEN_FILE_SIZE
 
       tag_fields, redactions = detect(doc, attachment_uuid)
-      flatten = flatten?(params) && doc.form? && doc.page_count <= ::Templates::FindTextTagFields::MAX_PAGES
 
       return if tag_fields.blank? && !flatten
 
@@ -38,9 +42,20 @@ module Ccn
 
     # API `flatten: true` (POST /templates/pdf, /submissions/pdf): the AcroForm widgets are detected as
     # fields above and then baked into the page content, so the stored PDF has no interactive form left.
-    # Skipped beyond FindTextTagFields::MAX_PAGES (each flattened page keeps a handle open until close).
     def flatten?(params)
       params[:flatten].to_s.casecmp?('true')
+    end
+
+    # An explicit `flatten: true` that cannot be honoured is refused (422), not silently dropped: each
+    # flattened page keeps a handle open until close, and the size cap is upstream's own for flattening.
+    def check_flatten!(doc, data)
+      max_pages = ::Templates::FindTextTagFields::MAX_PAGES
+      max_size = ::Templates::ProcessDocument::MAX_FLATTEN_FILE_SIZE
+
+      return if doc.page_count <= max_pages && data.size < max_size
+
+      raise Ccn::DocumentParams::Invalid,
+            "flatten is not supported beyond #{max_pages} pages or #{max_size / 1.megabyte} MB"
     end
 
     # Detection must never turn a working upload into a 500: on any failure the document takes the upstream

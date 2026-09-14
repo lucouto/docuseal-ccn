@@ -25,7 +25,10 @@ module Ccn
       template = find_existing(user, external_id)
       event = template ? 'template.updated' : 'template.created'
       template ||= user.account.templates.new(author: user, source: :api, external_id:)
-      template.preferences = template.preferences.merge('ccn_transient' => true) if transient
+      if transient # archived from the start: never listed, and a leftover (research D7) stays out of the way
+        template.preferences = template.preferences.merge('ccn_transient' => true)
+        template.archived_at = Time.current
+      end
 
       build(template, user, params, files, documents, replace: event == 'template.updated')
 
@@ -51,9 +54,17 @@ module Ccn
 
       template.save!
     rescue StandardError
-      template.destroy if created && template.persisted?
+      remove_failed(template) if created && template.persisted?
 
       raise
+    end
+
+    # The failure that got us here is the one the client must see; a cleanup problem is only logged.
+    def remove_failed(template)
+      template.destroy
+    rescue StandardError => e
+      Rollbar.error(e) if defined?(Rollbar)
+      Rails.logger.error("CCN template #{template.id} left behind after a failed creation: #{e.class}: #{e.message}")
     end
 
     def find_existing(user, external_id)

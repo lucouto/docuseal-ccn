@@ -6,6 +6,12 @@ module Ccn
   # (step 1), the controller runs upstream's own creation on it (step 2), then the submission takes the
   # snapshot and the documents for itself and the transient template is destroyed (step 3).
   module CreateSubmissionFromDocuments
+    # Upstream's other creation forms make several submissions per request; they are refused with an
+    # explicit 422 even next to `submitters[]` (the validator would then skip the per-submitter checks, and
+    # the single document set can only be attached once).
+    MULTI_SUBMISSION_KEYS = %i[emails email submissions submission].freeze
+    SINGLE_SUBMISSION_HINT = 'emails / submission / submissions[] (one submission per request: pass submitters[])'
+
     module_function
 
     # Step 1. `documents[].position` orders the documents; `merge_documents` folds them into one PDF. The
@@ -15,8 +21,8 @@ module Ccn
       raise Ccn::NotSupportedYet, 'template_ids' if params[:template_ids].present?
       raise Ccn::NotSupportedYet, 'variables' if params[:variables].present?
 
-      if params[:submitters].blank?
-        raise Ccn::NotSupportedYet, 'emails / submissions[] (one submission per request: pass submitters[])'
+      if params[:submitters].blank? || MULTI_SUBMISSION_KEYS.any? { |key| params[key].present? }
+        raise Ccn::NotSupportedYet, SINGLE_SUBMISSION_HINT
       end
 
       documents = ordered_documents(params)
@@ -50,15 +56,22 @@ module Ccn
       raise
     end
 
-    # Documents with a `position` come first, in position order; the others follow in input order.
+    # `documents[].position` is a 0-based index into the final order (as in PUT /templates/:id/documents): the
+    # documents without one keep their input order and each positioned document is inserted at its position,
+    # lowest first, clamped to the list.
     def ordered_documents(params)
       documents = Array.wrap(params[:documents]).map { |document| Ccn::DocumentParams.indifferent(document) }
+      positioned, ordered = documents.partition { |document| position_of(document) }
 
-      documents.each_with_index.sort_by do |document, index|
-        position = Integer(document[:position].to_s, 10, exception: false)
+      positioned.sort_by.with_index { |document, index| [position_of(document), index] }.each do |document|
+        ordered.insert(position_of(document).clamp(0, ordered.size), document)
+      end
 
-        position ? [0, position, index] : [1, index, index]
-      end.map(&:first)
+      ordered
+    end
+
+    def position_of(document)
+      Integer(document[:position].to_s, 10, exception: false)
     end
 
     # Step 3. The submission keeps its own snapshot (schema, fields, roles) and the documents themselves; the
@@ -79,9 +92,23 @@ module Ccn
     end
 
     # Destroyed through a fresh instance: the one used for creation still holds the submission in its loaded
-    # `submissions` association, which `dependent: :destroy` would take down with it.
+    # `submissions` association, which `dependent: :destroy` would take down with it. Never raises: the callers
+    # are either cleaning up after an error that must reach the client or finishing a request that already
+    # succeeded — a template that resists is archived anyway (never listed) and CcnDiscardTransientTemplateJob
+    # retries.
     def discard(template)
-      Template.find(template.id).destroy!
+      Template.find_by(id: template.id)&.destroy!
+    rescue StandardError => e
+      report_discard_failure(template, e)
+    end
+
+    def report_discard_failure(template, error)
+      Rollbar.error(error) if defined?(Rollbar)
+      Rails.logger.error("CCN transient template #{template.id} not removed: #{error.class}: #{error.message}")
+
+      CcnDiscardTransientTemplateJob.perform_in(1.minute, template.id)
+    rescue StandardError => e
+      Rails.logger.error("CCN transient template #{template.id}: retry not enqueued: #{e.class}: #{e.message}")
     end
   end
 end

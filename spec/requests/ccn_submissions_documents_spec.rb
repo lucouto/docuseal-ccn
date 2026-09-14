@@ -82,17 +82,30 @@ describe 'CCN submissions API (documents in)' do
       expect(json['documents']).not_to be_empty
     end
 
-    it 'puts positioned documents first and keeps the input order for the others' do
+    it 'inserts each positioned document at its 0-based position and keeps the input order for the others' do
       documents = [{ name: 'b', file: sample_base64 }, { name: 'c', file: sample_base64 },
                    { name: 'a', file: pdf_base64, position: 0 }]
 
       api :post, '/api/submissions/pdf', documents:, send_email: false, submitters: tag_submitters
-
       expect(response).to have_http_status(:ok)
       expect(json['schema'].pluck('name')).to eq(%w[a b c])
+
+      documents = [{ name: 'a', file: sample_base64 }, { name: 'b', file: sample_base64 },
+                   { name: 'c', file: pdf_base64, position: 2 }]
+
+      api :post, '/api/submissions/pdf', documents:, send_email: false, submitters: tag_submitters
+      expect(response).to have_http_status(:ok)
+      expect(json['schema'].pluck('name')).to eq(%w[a b c])
+
+      documents = [{ name: 'x', file: sample_base64, position: 1 }, { name: 'y', file: pdf_base64, position: 0 },
+                   { name: 'z', file: sample_base64 }, { name: 'w', file: sample_base64, position: 99 }]
+
+      api :post, '/api/submissions/pdf', documents:, send_email: false, submitters: tag_submitters
+      expect(response).to have_http_status(:ok)
+      expect(json['schema'].pluck('name')).to eq(%w[y x z w])
     end
 
-    it 'refuses the multi-submission forms (emails, submissions[]) with an explicit 422, leaving nothing behind' do
+    it 'refuses the multi-submission forms (emails, submission, submissions[]), even next to submitters[]' do
       documents = [{ name: 'lease', file: pdf_base64 }]
 
       api :post, '/api/submissions/pdf', documents:, emails: 'a@example.com, b@example.com'
@@ -104,8 +117,18 @@ describe 'CCN submissions API (documents in)' do
       expect(response).to have_http_status(:unprocessable_content)
       expect(json['error']).to match(/one submission per request/)
 
+      # Upstream would silently take the submitters and skip their validation on the emails branch.
+      api :post, '/api/submissions/pdf', documents:, submitters: tag_submitters, emails: 'a@example.com'
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to match(/one submission per request/)
+
+      api :post, '/api/submissions/pdf', documents:, submission: { submitters: tag_submitters }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to match(/one submission per request/)
+
       expect(Template.count).to eq(0)
       expect(Submission.count).to eq(0)
+      expect(ActiveStorage::Attachment.count).to eq(0)
     end
 
     it 'orders the documents by position and merges them into one PDF when merge_documents is true' do
@@ -157,6 +180,40 @@ describe 'CCN submissions API (documents in)' do
 
       expect(Template.count).to eq(0)
       expect(Submission.count).to eq(0)
+      expect(ActiveStorage::Attachment.count).to eq(0)
+    end
+
+    it 'keeps the original error and schedules a retry when the transient template resists removal' do
+      allow_any_instance_of(Template).to receive(:destroy!).and_raise(ActiveRecord::RecordNotDestroyed, 'storage')
+
+      expect do
+        api :post, '/api/submissions/pdf', documents: [{ name: 'plain', file: sample_base64 }],
+                                           submitters: tag_submitters
+      end.to change(CcnDiscardTransientTemplateJob.jobs, :size).by(1)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to match(/no fields/) # the request's own error, not the cleanup's
+
+      leftover = Template.find(CcnDiscardTransientTemplateJob.jobs.last['args'].first)
+      expect(leftover.archived_at).to be_present
+      expect(leftover.preferences['ccn_transient']).to be(true)
+
+      get '/api/templates', headers: headers
+      expect(json['data']).to be_empty # archived from creation: never listed
+    end
+  end
+
+  describe 'CcnDiscardTransientTemplateJob' do
+    it 'destroys a transient template and nothing else' do
+      transient = create(:template, account:, author: user, archived_at: Time.current,
+                                    preferences: { 'ccn_transient' => true })
+      regular = create(:template, account:, author: user, archived_at: Time.current)
+
+      CcnDiscardTransientTemplateJob.new.perform(transient.id)
+      CcnDiscardTransientTemplateJob.new.perform(regular.id)
+      CcnDiscardTransientTemplateJob.new.perform(transient.id) # already gone: no error
+
+      expect(Template.where(id: [transient.id, regular.id]).pluck(:id)).to eq([regular.id])
     end
   end
 

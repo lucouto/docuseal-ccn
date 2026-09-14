@@ -100,7 +100,9 @@ describe 'CCN templates API (documents in)' do
       api :post, '/api/templates/pdf', documents: [{ name: "bad\u0000/name.#{'x' * 300}", file: pdf_base64 }]
 
       expect(response).to have_http_status(:ok)
-      expect(json['documents'].first['filename']).to eq("badname.#{'x' * 300}.pdf")
+      filename = json['documents'].first['filename']
+      expect(filename).to start_with('badname.xxx').and end_with('.pdf')
+      expect(filename.bytesize).to be <= 255
     end
 
     it 'downloads an https document and names it after the URL' do
@@ -128,6 +130,17 @@ describe 'CCN templates API (documents in)' do
       Pdfium::Document.open_io(StringIO.new(data)) do |doc|
         expect(Templates::FindPdfiumAcroFields.call(stored, doc, data)).to be_empty
       end
+    end
+
+    it 'refuses flatten explicitly when the document is beyond the flattening limits' do
+      stub_const('Templates::FindTextTagFields::MAX_PAGES', 0)
+      acroform = Base64.strict_encode64(fixtures.join('ccn/acroform.pdf').binread)
+
+      api :post, '/api/templates/pdf', flatten: true, documents: [{ name: 'form', file: acroform }]
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to match(/flatten is not supported/)
+      expect(Template.count).to eq(0)
     end
 
     it 'answers every client error with a 422 and leaves no template behind' do

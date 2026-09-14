@@ -11,19 +11,21 @@ module Ccn
         render_ccn_error(Ccn::OfficeDocument.error_message(e))
       end
 
+      # Invalid covers the download failures too: Ccn::DocumentParams.download translates them where they
+      # happen, so no Faraday error is rescued here (one raised elsewhere in a request is not a download).
       rescue_from Ccn::DocumentParams::Invalid, DownloadUtils::UnableToDownload,
                   Submitters::NormalizeValues::BaseError, Submissions::CreateFromSubmitters::BaseError do |e|
         render_ccn_error(e.message)
       end
 
-      # A client-supplied documents[].file URL that is unreachable, slow, malformed or not a URL at all.
-      rescue_from Faraday::Error, URI::InvalidURIError, Addressable::URI::InvalidURIError do |e|
-        render_ccn_error(I18n.t('ccn_download_failed', message: e.class.name.demodulize.underscore.humanize.downcase))
+      # A corrupt archive or image inside documents[].file. The archive class is named, not referenced:
+      # rubyzip reaches the bundle through rubyXL only, and upstream too resolves Zip lazily.
+      rescue_from 'Zip::Error' do
+        render_ccn_error(I18n.t('ccn_invalid_archive'))
       end
 
-      # A corrupt archive or image inside documents[].file.
-      rescue_from Zip::Error, Vips::Error do |e|
-        render_ccn_error(I18n.t('ccn_invalid_document', message: e.message.to_s.truncate(120)))
+      rescue_from Vips::Error do
+        render_ccn_error(I18n.t('ccn_invalid_image'))
       end
 
       rescue_from Ccn::NotSupportedYet do |e|
@@ -49,7 +51,7 @@ module Ccn
     def ccn_invalid_file_type_message(error)
       type = error.message.delete_suffix('/false').delete_suffix('/true')
 
-      return I18n.t('ccn_invalid_document', message: 'zip archive too large') if type == 'zip_too_large'
+      return I18n.t('ccn_zip_too_large') if type == 'zip_too_large'
       return I18n.t('ccn_unrecognized_file') if type == 'application/octet-stream'
       return I18n.t('ccn_conversion_unavailable') if Templates::CreateAttachments::DOCUMENT_CONTENT_TYPES.include?(type)
 

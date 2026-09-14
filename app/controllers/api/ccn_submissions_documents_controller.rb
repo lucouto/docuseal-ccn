@@ -7,10 +7,9 @@ module Api
   class CcnSubmissionsDocumentsController < Api::SubmissionsController
     include Ccn::IngestionErrors
 
-    before_action(only: %i[pdf docx html]) do
-      authorize!(:create, Submission)
-      authorize!(:create, Template) # a (transient) template row is created on the way
-    end
+    # A submissions operation: the transient template on the way is an implementation detail, not a template
+    # the user creates.
+    before_action(only: %i[pdf docx html]) { authorize!(:create, Submission) }
 
     def pdf
       create_from(:pdf)
@@ -36,7 +35,7 @@ module Api
       template = Ccn::CreateSubmissionFromDocuments.transient_template(user: current_user, params:, format:)
       submissions = create_and_detach(template)
 
-      discard_quietly(template)
+      Ccn::CreateSubmissionFromDocuments.discard(template) # never raises: the submission is complete
       after_create(submissions)
 
       render json: build_documents_json(submissions)
@@ -49,8 +48,8 @@ module Api
 
       submissions = create_submissions(template, params)
 
+      # With submitters[] upstream builds at most one submission (none when every submitter is blank).
       raise Ccn::DocumentParams::Invalid, 'no submission was created: check submitters[]' if submissions.empty?
-      raise Ccn::NotSupportedYet, 'several submissions per request' if submissions.size > 1
 
       submissions.each { |submission| Ccn::CreateSubmissionFromDocuments.detach(submission, template) }
 
@@ -58,14 +57,6 @@ module Api
     rescue StandardError
       Ccn::CreateSubmissionFromDocuments.discard(template) # cascades to a submission still attached to it
       raise
-    end
-
-    # The submission is complete and detached at this point: a failure here must not fail the request.
-    def discard_quietly(template)
-      Ccn::CreateSubmissionFromDocuments.discard(template)
-    rescue StandardError => e
-      Rollbar.error(e) if defined?(Rollbar)
-      Rails.logger.error("CCN transient template #{template.id} not removed: #{e.class}: #{e.message}")
     end
 
     # Same sequence as upstream `create` once the rows exist: webhooks, invitations, completion handling.

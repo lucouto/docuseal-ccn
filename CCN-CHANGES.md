@@ -34,4 +34,4 @@ git rebase --onto <new-tag> <old-tag> ccn        # resolve using the table below
 |------|---------|
 | `.github/workflows/ccn-image.yml` | GHCR image build on `*-ccn.*` tags (linux/amd64) |
 | `CCN-CHANGES.md` | this register |
-| `spec/contract/openapi_contract_spec.rb` | contract test: every operation of `docs/openapi.json` implemented here is routable and its responses match the spec |
+| `spec/requests/openapi_contract_spec.rb` + `spec/support/openapi_contract.rb` | contract test: every operation of `docs/openapi.json` is routable except the pinned PENDING list, and each implemented operation's real response matches its declared schema (dependency-free validator) |

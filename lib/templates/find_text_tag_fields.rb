@@ -6,12 +6,17 @@ module Templates
   # Works on Pdfium::Page#text_nodes (one node per character, already sorted into lines), so tags split
   # into several text runs by Word are still found; a tag broken across two lines is left alone.
   module FindTextTagFields
-    TAG_REGEXP = /\{\{(.+?)\}\}/
+    # No brace inside a tag: a stray '{{' earlier on the line cannot swallow the real tag that follows it.
+    TAG_REGEXP = /\{\{([^{}]+?)\}\}/
+    # Same threshold as Pdfium::Page#text_nodes' own line sort (4 pt, normalized by the page *width*), so the
+    # groups below are exactly the lines pdfium ordered.
     LINE_THRESHOLD_PT = 4.0
     REDACTION_PADDING_PT = 1.0
     TYPES = %w[text signature initials date image file select checkbox radio number cells stamp phone
                multiple].freeze
     NAME_TYPES = %w[signature initials date].freeze
+    # Pages beyond this are neither scanned nor erased (a page handle stays open per scanned page until the
+    # document is closed); documents that long are not what text tags are for.
     MAX_PAGES = 200
 
     Tag = Struct.new(:name, :type, :role, :options, :required, :readonly, :default_value, :format,
@@ -50,26 +55,31 @@ module Templates
       end
     end
 
-    # Groups the page's character nodes into lines (Pdfium sorts them by baseline, then x).
+    # Groups the page's character nodes into lines: Pdfium::Page#text_nodes sorts them by the bottom of their
+    # loose box (within LINE_THRESHOLD_PT / width) and then by x — the same partition is used here.
     def lines(page)
-      threshold = LINE_THRESHOLD_PT / page.height
+      threshold = LINE_THRESHOLD_PT / page.width
 
       page.text_nodes.slice_when { |a, b| (a.endy - b.endy).abs >= threshold }.to_a
     end
 
+    # {{Name;attr=value;…}}: the first segment is the name unless it is itself an attribute (`name=…` names the
+    # field, any other `key=value` first means the tag has no name). Returns nil for an unnamed tag.
     def parse(body)
-      segments = body.split(';').map(&:strip).reject(&:empty?)
+      segments = body.split(';').map(&:strip)
+      first = segments.shift.to_s
+      attrs = {}
 
-      return if segments.empty?
+      if first.include?('=')
+        segments.unshift(first)
+      else
+        attrs['name'] = first
+      end
 
-      first_key, first_value = segments.first.split('=', 2)
-      named = !first_value.nil? && first_key.strip.casecmp?('name')
-      attrs = { 'name' => named ? first_value.strip : segments.first }
-
-      segments.drop(1).each do |segment|
+      segments.each do |segment|
         key, value = segment.split('=', 2)
 
-        attrs[key.strip.downcase] = value.strip unless value.nil?
+        attrs[key.strip.downcase] = value.strip unless value.nil? || key.strip.empty?
       end
 
       attrs['name'].blank? ? nil : attrs
@@ -108,7 +118,10 @@ module Templates
       box = { 'x' => x, 'y' => y,
               'w' => width.positive? ? width / page.width : w,
               'h' => height.positive? ? height / page.height : h }
-      redact_rect = { 'x' => x - pad_x, 'y' => y - pad_y, 'w' => w + (2 * pad_x), 'h' => h + (2 * pad_y) }
+      # 'white' tells Page#redact to erase the characters without painting a rectangle (any other value
+      # paints a black bar — lib/pdfium.rb draw_redaction_rects).
+      redact_rect = { 'x' => x - pad_x, 'y' => y - pad_y, 'w' => w + (2 * pad_x), 'h' => h + (2 * pad_y),
+                      'color' => 'white' }
 
       [box, redact_rect]
     end

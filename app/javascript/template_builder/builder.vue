@@ -3071,7 +3071,7 @@ export default {
           this.pendingFieldAttachmentUuids.push(attachment.uuid)
 
           attachment.metadata.pdf.fields.forEach((field) => {
-            field.submitter_uuid = this.selectedSubmitter.uuid
+            field.submitter_uuid = field.submitter_uuid || this.selectedSubmitter.uuid // CCN: tag roles win
 
             this.insertField(field)
           })

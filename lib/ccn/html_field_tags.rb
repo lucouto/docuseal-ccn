@@ -77,9 +77,10 @@ module Ccn
       number.positive? ? number : default
     end
 
-    # Tag syntax uses ';' and '}}' as delimiters and '=' inside attributes.
+    # Tag syntax uses ';', '{{', '}}' as delimiters and '=' between key and value: none may appear in a value
+    # (a name containing '=' would be read back as an attribute by Templates::FindTextTagFields#parse).
     def sanitize(value)
-      value.to_s.gsub(/[;{}]/, ' ').squish
+      value.to_s.gsub(/[;{}=]/, ' ').squish
     end
   end
 end

@@ -35,6 +35,12 @@ class TemplatesUploadsController < ApplicationController
   rescue Templates::CreateAttachments::PdfEncrypted
     render turbo_stream: turbo_stream.append(params[:form_id], html: helpers.tag.prompt_password)
   rescue StandardError => e
+    if e.is_a?(Ccn::Gotenberg::Error) # CCN: no partial template; ApplicationController's rescue_from shows the message
+      @template.destroy if @template.persisted? && @template.schema.blank?
+
+      raise
+    end
+
     Rollbar.error(e) if defined?(Rollbar)
 
     raise if Rails.env.local?

@@ -61,6 +61,35 @@ describe 'CCN document upload (builder)' do
       expect(page_texts(template.schema_documents.first).join).to include('{{DOB;type=date}}')
     end
 
+    it 'decrypts a password-protected PDF, erases its tags and stores it without the password' do
+      encrypted = Rack::Test::UploadedFile.new(fixtures.join('ccn/fieldtags-encrypted.pdf'), 'application/pdf')
+
+      post '/templates_upload', params: { files: [encrypted], password: 'secret' }
+
+      template = Template.last
+      document = template.schema_documents.first
+
+      expect(template.fields.pluck('name')).to match_array(expected_names)
+      expect(page_texts(document).join).not_to match(Templates::FindTextTagFields::TAG_REGEXP)
+      expect(Pdfium::Document.open_io(StringIO.new(document.download), &:encrypted?)).to be(false)
+    end
+
+    it 'persists and returns the roles added by tags when a document is added to an existing template' do
+      template = create(:template, account:, author: user)
+
+      post "/templates/#{template.id}/documents", params: { files: [pdf_upload] }, headers: json_headers
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['submitters'].pluck('name')).to eq(['First Party', 'Signer2'])
+      expect(template.reload.submitters.pluck('name')).to eq(['First Party', 'Signer2'])
+
+      fields = response.parsed_body['documents'].first.dig('metadata', 'pdf', 'fields')
+      signer2 = template.submitters.last['uuid']
+
+      expect(fields.find { |f| f['name'] == 'FIeld2' }['submitter_uuid']).to eq(signer2)
+      expect(fields.find { |f| f['name'] == 'Text Field' }['submitter_uuid']).to eq(template.submitters.first['uuid'])
+    end
+
     it 'leaves a document without tags on the upstream path' do
       plain = Rack::Test::UploadedFile.new(fixtures.join('sample-document.pdf'), 'application/pdf')
 
@@ -90,6 +119,15 @@ describe 'CCN document upload (builder)' do
       expect(document.filename.to_s).to eq('fieldtags.pdf')
       expect(document.content_type).to eq('application/pdf')
       expect(page_texts(document).join).not_to match(Templates::FindTextTagFields::TAG_REGEXP)
+    end
+
+    it 'redirects the main upload with the translated message and no partial template when the sidecar is down' do
+      stub_request(:post, "#{gotenberg_url}/forms/libreoffice/convert").to_raise(Errno::ECONNREFUSED)
+
+      expect { post '/templates_upload', params: { files: [docx_upload] } }.not_to change(Template, :count)
+
+      expect(response).to redirect_to(root_path)
+      expect(flash[:alert]).to eq(I18n.t('ccn_conversion_unavailable'))
     end
 
     it 'answers the builder JSON endpoint with a clear error when the sidecar is unreachable' do

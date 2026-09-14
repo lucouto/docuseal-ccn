@@ -11,6 +11,15 @@ module Ccn
     DATA_URI_REGEXP = /\Adata:[^;,]*(?:;[^,]*)?,/i
     FIELD_TYPES = %w[text signature initials date number image checkbox multiple file radio select cells stamp
                      phone heading strikethrough].freeze
+    # Extension given to a base64 upload without a name (Rack::Mime's reverse lookup is first-match: .jpe).
+    EXTENSIONS = {
+      'application/pdf' => '.pdf', 'image/png' => '.png', 'image/jpeg' => '.jpg', 'image/gif' => '.gif',
+      'image/webp' => '.webp', 'image/bmp' => '.bmp', 'image/tiff' => '.tiff',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => '.docx',
+      'application/msword' => '.doc', 'application/vnd.oasis.opendocument.text' => '.odt',
+      'application/rtf' => '.rtf', 'application/vnd.ms-excel' => '.xls',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => '.xlsx'
+    }.freeze
 
     module_function
 
@@ -36,7 +45,7 @@ module Ccn
 
     def download(url)
       response = DownloadUtils.call(url, validate: true)
-      filename = File.basename(URI.decode_www_form_component(URI.parse(url).path.to_s))
+      filename = File.basename(CGI.unescapeURIComponent(URI.parse(url).path.to_s))
 
       [response.body, filename]
     end
@@ -48,7 +57,7 @@ module Ccn
       tempfile.rewind
 
       type = Marcel::MimeType.for(tempfile, name: filename)
-      filename += Rack::Mime::MIME_TYPES.key(type).to_s if File.extname(filename).blank?
+      filename += EXTENSIONS.fetch(type) { Rack::Mime::MIME_TYPES.key(type).to_s } if File.extname(filename).blank?
 
       ActionDispatch::Http::UploadedFile.new(tempfile:, filename:, type:)
     end

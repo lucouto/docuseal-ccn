@@ -51,7 +51,11 @@ module Templates
 
       document_data = decrypt_document(doc) if doc.encrypted?
 
-      # CCN fork: {{text tags}} become fields and are erased from the stored PDF (CCN-CHANGES.md).
+      annotations =
+        document_data.size < ANNOTATIONS_SIZE_LIMIT ? Templates::BuildPdfiumAnnotations.call(doc) : []
+
+      # CCN fork: {{text tags}} become fields and are erased from the stored PDF (CCN-CHANGES.md). Link
+      # annotations are collected above, from the document as uploaded: erasing flattens the pages it touches.
       uuid = SecureRandom.uuid
       tags = Ccn::TextTags.call(doc, document_data, uuid, params, extract_fields:)
 
@@ -59,9 +63,6 @@ module Templates
         document_data = tags.data
         doc = tags.doc
       end
-
-      annotations =
-        document_data.size < ANNOTATIONS_SIZE_LIMIT ? Templates::BuildPdfiumAnnotations.call(doc) : []
 
       document = create_document(template, file, document_data, metadata, annotations, uuid:)
 

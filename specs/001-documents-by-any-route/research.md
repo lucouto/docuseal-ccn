@@ -19,7 +19,8 @@ material (`docs/openapi.json`, the `fieldtags.pdf` syntax sheet, CLI 1.0.4 `--he
 - **Rationale**: the syntax sheet lists `{{Signature}}` under "Signature" next to `{{Sign here;type=signature}}`, so name inference is expected; everything else is documented literally.
 
 ### D4. Redaction
-- **Decision**: `Page#redact(rects)` with white rectangles over each tag's character boxes (per tag, union of its char boxes), then `Document#save(io)`; skipped when `remove_tags` is false.
+- **Decision**: `Page#redact(rects)` over each tag's character boxes (per tag, union of its char boxes, `color: 'white'` = erase the glyphs, paint nothing — any other value paints a black bar), then `Document#save(io, flags: FPDF_REMOVE_SECURITY)`; skipped when `remove_tags` is false.
+- **Known cost** (review of `c8a7e493`): `redact` flattens the pages it touches and rebuilds a partially erased text run glyph by glyph, dropping blanks — the rendering is unchanged but text *extracted* from an erased line has no spaces (copy/paste, search). Link annotations are therefore collected before the erase. Accepted for Stage 2; a run-preserving rewrite is a later refinement.
 - **Rationale**: `redact` flattens, removes the characters from the content stream and paints the rectangle (`lib/pdfium.rb:1173-1200`), so the tag cannot be recovered by copy/paste; it is the same primitive upstream uses for its own redaction feature.
 
 ### D5. DOCX conversion

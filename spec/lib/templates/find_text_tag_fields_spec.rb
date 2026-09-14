@@ -61,7 +61,28 @@ describe Templates::FindTextTagFields do
     expect(redactions.keys).to eq([0, 1])
     expect(redactions[0].size).to eq(6)
     expect(redactions[1].size).to eq(3)
-    expect(redactions[0].first.keys).to contain_exactly('x', 'y', 'w', 'h')
+    expect(redactions[0].first.keys).to contain_exactly('x', 'y', 'w', 'h', 'color')
+    expect(redactions[0].first['color']).to eq('white') # erase only, no painted bar (Page#redact)
+  end
+
+  describe '.parse' do
+    it 'reads the first segment as the name and the rest as attributes' do
+      expect(described_class.parse('Foo')).to eq('name' => 'Foo')
+      expect(described_class.parse(' Foo ; Type=Date ; role=Tenant ')).to eq('name' => 'Foo', 'type' => 'Date',
+                                                                              'role' => 'Tenant')
+      expect(described_class.parse('name=Foo;type=date')).to eq('name' => 'Foo', 'type' => 'date')
+    end
+
+    it 'rejects a tag without a name' do
+      expect(described_class.parse(';type=date')).to be_nil
+      expect(described_class.parse('type=signature;role=X')).to be_nil
+      expect(described_class.parse('Foo=bar')).to be_nil
+      expect(described_class.parse('')).to be_nil
+    end
+  end
+
+  it 'does not let a stray opening brace swallow the tag that follows on the same line' do
+    expect('a {{ b {{Real;type=date}} c'.scan(described_class::TAG_REGEXP).flatten).to eq(['Real;type=date'])
   end
 
   it 'erases every tag when the rectangles are redacted, keeping the surrounding text' do

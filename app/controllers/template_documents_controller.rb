@@ -17,8 +17,12 @@ class TemplateDocumentsController < ApplicationController
     end
 
     old_fields_hash = @template.fields.hash
+    old_submitters = @template.submitters.deep_dup # CCN: tag roles may add submitters (Ccn::AssignRoles)
 
     documents, = Templates::CreateAttachments.call(@template, params, extract_fields: true)
+
+    submitters_changed = @template.submitters != old_submitters # CCN
+    @template.save! if submitters_changed # CCN
 
     schema = documents.map do |doc|
       { attachment_uuid: doc.uuid, name: doc.filename.base }
@@ -27,7 +31,7 @@ class TemplateDocumentsController < ApplicationController
     render json: {
       schema:,
       fields: old_fields_hash == @template.fields.hash ? nil : @template.fields,
-      submitters: old_fields_hash == @template.fields.hash ? nil : @template.submitters,
+      submitters: old_fields_hash == @template.fields.hash && !submitters_changed ? nil : @template.submitters,
       documents: documents.as_json(
         methods: %i[metadata signed_key],
         include: {

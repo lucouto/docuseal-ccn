@@ -43,6 +43,10 @@ en:
   ccn_version_documents_missing: 'This version refers to documents the template no longer has'
   ccn_no_documents: 'The template has no documents'
   ccn_too_many_pages: 'Field detection handles at most %{max} pages per request'
+  ccn_folder_name_required: 'The folder name is required'
+  ccn_invalid_preference_value: 'Template preference ''%{key}'' expects a %{type} value'
+  ccn_no_submitters: 'The template has no signer role to attach the fields to'
+  ccn_invalid_page: 'page must be a page number starting from 1'
 fr:
   ccn_not_available_yet: Pas encore disponible sur cette instance
   ccn_not_available_yet_hint_html: Cette fonctionnalité DocuSeal Pro est en cours de réimplémentation dans le <a class="link" href="%{url}" target="_blank" rel="noopener">fork CCN</a>.
@@ -86,3 +90,7 @@ fr:
   ccn_version_documents_missing: 'Cette version fait référence à des documents que le modèle n''a plus'
   ccn_no_documents: 'Le modèle n''a aucun document'
   ccn_too_many_pages: 'La détection de champs traite au plus %{max} pages par requête'
+  ccn_folder_name_required: 'Le nom du dossier est obligatoire'
+  ccn_invalid_preference_value: 'La préférence de modèle ''%{key}'' attend une valeur de type %{type}'
+  ccn_no_submitters: 'Le modèle n''a aucun rôle de signataire auquel rattacher les champs'
+  ccn_invalid_page: 'page doit être un numéro de page à partir de 1'

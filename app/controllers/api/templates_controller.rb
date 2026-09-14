@@ -3,6 +3,7 @@
 module Api
   class TemplatesController < ApiBaseController
     load_and_authorize_resource :template
+    include Ccn::TemplatePreferences::ApiHook # CCN fork: `preferences` on update (specs/002-everything-by-api)
 
     def index
       @templates = Templates.shared(current_user) if params[:shared].in?(['true', true])
@@ -53,6 +54,8 @@ module Api
       if archived.in?([true, false]) && current_ability.can?(:destroy, @template)
         @template.archived_at = archived == true ? Time.current : nil
       end
+
+      ccn_apply_preferences! # CCN fork
 
       @template.update!(template_params)
 

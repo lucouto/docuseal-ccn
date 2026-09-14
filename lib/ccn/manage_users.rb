@@ -56,7 +56,7 @@ module Ccn
 
       raise AdminInvalid, I18n.t('ccn_self_change_refused') if user == actor && attrs.keys.intersect?(SELF_GUARDED)
 
-      changes = attrs.except('archived', 'archived_at').reject { |key, value| value.blank? && value != false }
+      changes = attrs.except('archived', 'archived_at').reject { |_, value| value.blank? && value != false }
       changes.merge!(archived_attrs(attrs))
 
       user.update!(changes)
@@ -98,7 +98,7 @@ module Ccn
     def permitted(attrs)
       attrs = Ccn::DocumentParams.indifferent(attrs).slice(*ATTRIBUTES, 'archived').to_h
 
-      if attrs.key?('role') && !User::ROLES.include?(attrs['role'])
+      if attrs.key?('role') && User::ROLES.exclude?(attrs['role'])
         raise AdminInvalid, I18n.t('ccn_invalid_role', role: attrs['role'], roles: User::ROLES.join(', '))
       end
 

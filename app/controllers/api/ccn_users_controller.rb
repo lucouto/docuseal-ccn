@@ -18,12 +18,12 @@ module Api
       }
     end
 
-    def create
-      render json: Ccn::ManageUsers.invite(current_account, current_user, user_attrs, send_email: send_email?)
-    end
-
     def show
       render json: Ccn::ManageUsers.serialize(@user)
+    end
+
+    def create
+      render json: Ccn::ManageUsers.invite(current_account, current_user, user_attrs, send_email: send_email?)
     end
 
     def update

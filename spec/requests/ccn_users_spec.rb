@@ -25,9 +25,9 @@ describe 'CCN users API' do
       api :get, '/api/ccn/users'
       expect(response).to have_http_status(:ok)
       expect(json['data'].pluck('id')).to contain_exactly(admin.id, colleague.id)
-      expect(json['data'].first.keys).to contain_exactly(*%w[id email first_name last_name role archived_at
-                                                              otp_required_for_login current_sign_in_at
-                                                              last_sign_in_at created_at updated_at])
+      expect(json['data'].first.keys).to match_array(%w[id email first_name last_name role archived_at
+                                                        otp_required_for_login current_sign_in_at last_sign_in_at
+                                                        created_at updated_at])
       expect(json['pagination']).to include('count' => 2)
 
       api :get, '/api/ccn/users?status=archived'

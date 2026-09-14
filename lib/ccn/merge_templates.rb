@@ -9,16 +9,8 @@ module Ccn
     module_function
 
     def call(user:, templates:, params:)
-      template = user.account.templates.new(author: user, source: :api)
-      template.name = params[:name].presence || "#{templates.first.name} (Merged)"
-      template.external_id = params[:external_id].presence || params[:application_key].presence
-      template.folder = TemplateFolders.find_or_create_by_name(user, params[:folder_name])
-      template.shared_link = Ccn::DocumentParams.boolean(params[:shared_link]) if params.key?(:shared_link)
-
       roles = Array.wrap(params[:roles]).map { |role| role.to_s.squish }.compact_blank
-      template.submitters = roles.map { |name| { 'name' => name, 'uuid' => SecureRandom.uuid } }
-      template.schema = []
-      template.fields = []
+      template = build_template(user, templates, params, roles)
 
       templates.each { |source| append(template, source, roles) }
 
@@ -33,6 +25,19 @@ module Ccn
       SearchEntries.enqueue_reindex(template)
 
       template.reload
+    end
+
+    def build_template(user, templates, params, roles)
+      template = user.account.templates.new(author: user, source: :api)
+      template.name = params[:name].presence || "#{templates.first.name} (Merged)"
+      template.external_id = params[:external_id].presence || params[:application_key].presence
+      template.folder = TemplateFolders.find_or_create_by_name(user, params[:folder_name])
+      template.shared_link = Ccn::DocumentParams.boolean(params[:shared_link]) if params.key?(:shared_link)
+      template.submitters = roles.map { |name| { 'name' => name, 'uuid' => SecureRandom.uuid } }
+      template.schema = []
+      template.fields = []
+
+      template
     end
 
     def append(template, source, roles)

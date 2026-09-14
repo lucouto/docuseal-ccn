@@ -9,13 +9,7 @@
 # spec's declared response schema.
 describe 'OpenAPI contract' do
   # Pro-only in upstream 3.2.4 — implemented by the CCN fork in Stage 2 (FORK-PLAN.md §3.1).
-  let(:pending_operations) do
-    [
-      %w[post /submissions/pdf],
-      %w[post /submissions/docx],
-      %w[post /submissions/html]
-    ]
-  end
+  let(:pending_operations) { [] }
 
   # Where upstream's own 3.2.4 API disagrees with its published spec. Pinned explicitly so a fork change
   # that fixes or worsens a discrepancy is noticed; re-check on every upstream rebase.
@@ -193,6 +187,41 @@ describe 'OpenAPI contract' do
       delete "/api/submissions/#{submission.id}", headers: headers
 
       expect_conforming_response('delete', '/submissions/{id}')
+    end
+
+    # CCN fork, Stage 2: submissions from documents (Gotenberg stubbed with the tag fixture).
+    it 'POST /submissions/pdf' do
+      body = { send_email: false, documents: [{ name: 'tags', file: fieldtags_base64 }],
+               submitters: [{ role: 'First Party', email: 'contract.pdf@example.com' }] }
+
+      post '/api/submissions/pdf', headers: headers, params: body.to_json
+
+      expect_conforming_response('post', '/submissions/pdf')
+    end
+
+    it 'POST /submissions/docx' do
+      stub_const('Ccn::GOTENBERG_URL', gotenberg_url)
+      stub_request(:post, "#{gotenberg_url}/forms/libreoffice/convert")
+        .to_return(status: 200, body: Base64.strict_decode64(fieldtags_base64))
+      docx = Base64.strict_encode64(Rails.root.join('spec/fixtures/fieldtags.docx').binread)
+      body = { send_email: false, documents: [{ name: 'tags', file: docx }],
+               submitters: [{ role: 'First Party', email: 'contract.docx@example.com' }] }
+
+      post '/api/submissions/docx', headers: headers, params: body.to_json
+
+      expect_conforming_response('post', '/submissions/docx')
+    end
+
+    it 'POST /submissions/html' do
+      stub_const('Ccn::GOTENBERG_URL', gotenberg_url)
+      stub_request(:post, "#{gotenberg_url}/forms/chromium/convert/html")
+        .to_return(status: 200, body: Base64.strict_decode64(fieldtags_base64))
+      body = { send_email: false, documents: [{ name: 'web', html: '<p><text-field name="A"></text-field></p>' }],
+               submitters: [{ role: 'First Party', email: 'contract.html@example.com' }] }
+
+      post '/api/submissions/html', headers: headers, params: body.to_json
+
+      expect_conforming_response('post', '/submissions/html')
     end
   end
 

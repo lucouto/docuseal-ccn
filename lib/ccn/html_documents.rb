@@ -7,9 +7,11 @@ module Ccn
   module HtmlDocuments
     module_function
 
+    # @param documents [Array, nil] documents[] to use instead of params[:documents] (already ordered)
     # @return [Array<ActionDispatch::Http::UploadedFile>]
-    def files_from(params)
-      sources = Array.wrap(params[:documents]).map { |document| Ccn::DocumentParams.indifferent(document) }
+    def files_from(params, documents: nil)
+      documents ||= Array.wrap(params[:documents])
+      sources = documents.map { |document| Ccn::DocumentParams.indifferent(document) }
 
       if params[:html].present?
         sources.unshift({ 'html' => params[:html], 'name' => params[:name] }.with_indifferent_access)

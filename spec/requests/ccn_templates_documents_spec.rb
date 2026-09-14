@@ -13,7 +13,11 @@ describe 'CCN templates API (documents in)' do
   let(:sample_base64) { Base64.strict_encode64(fixtures.join('sample-document.pdf').binread) }
   let(:gotenberg_url) { 'http://gotenberg.test:3000' }
   let(:tag_names) { ['Text Field', 'Field1', 'FIeld2', 'DOB', 'Signature', 'Sign here', 'Name', 'Test'] }
-  let(:json) { response.parsed_body }
+
+  # Not a `let`: several examples issue more than one request and read each response.
+  def json
+    response.parsed_body
+  end
 
   def api(method, path, body = {})
     public_send(method, path, headers:, params: body.to_json)
@@ -265,7 +269,7 @@ describe 'CCN templates API (documents in)' do
 
       api :put, "/api/templates/#{template.id}/documents", documents: [{ name: 'tags', file: pdf_base64, position: 0 }]
       expect(response).to have_http_status(:ok)
-      expect(json['schema'].pluck('name')).to eq(['tags', 'sample-document'])
+      expect(json['schema'].pluck('name')).to eq(%w[tags sample-document])
       expect(json['fields'].pluck('name')).to include(*tag_names)
       expect(json['submitters'].pluck('name')).to eq(['First Party', 'Signer2'])
 

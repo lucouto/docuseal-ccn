@@ -49,16 +49,16 @@ description: "Task list for Stage 2 — documents in, by any route"
 
 ## Phase 5: US4 — submissions from documents (P2)
 
-- [ ] T018 [US4] `lib/ccn/create_submission_from_documents.rb` — transient template (`CreateFromDocuments` with `preferences: {ccn_transient: true}`), `merge_documents` (PdfUtils.merge before ingestion), `position` ordering, detach (D7: snapshot copy, attachments re-pointed with preview images, `template_id = nil`, transient destroyed), rollback on failure; `template_ids`/`variables` → `NotSupportedYet`
-- [ ] T019 [US4] `app/controllers/api/ccn_submissions_documents_controller.rb` (`Api::CcnSubmissionsDocumentsController < Api::SubmissionsController`) — `skip_load_and_authorize_resource :template`, `skip_before_action :maybe_return_template_error`; `pdf`/`docx`/`html` actions: build transient via T018 step 1, set `params[:template_id]`, `Params::SubmissionCreateValidator.call`, defaults, `create_submissions`, webhooks, `Submissions.send_signature_requests`, completion loop (copied from upstream `create`), detach, render `Submissions::SerializeForApi.call(submission, params: {include: 'fields'})` merged with `schema`; rescue table → 422
-- [ ] T020 [US4] `spec/requests/ccn_submissions_documents_spec.rb`: pdf with role Tenant + submitter role Tenant → single submission object with `documents: []`, `schema`, `fields`, `template_id` nil, no Template left; sign through `/s/:slug` (`sidekiq: :inline`) → 200 and result documents present; `merge_documents: true` → 1 schema item; `send_email: true` → `SubmitterMailer` job enqueued (fake) but nothing else; `template_ids` → 422; docx (stub) → same; html → same; bad submitter → upstream 422 preserved
-- [ ] T021 [US4] Contract spec: 3 submission operations get conforming-response examples; `pending_operations` → `[]`
+- [x] T018 [US4] `lib/ccn/create_submission_from_documents.rb` — transient template (`CreateFromDocuments` with `preferences: {ccn_transient: true}`), `merge_documents` (PdfUtils.merge before ingestion), `position` ordering, detach (D7: snapshot copy, attachments re-pointed with preview images, `template_id = nil`, transient destroyed), rollback on failure; `template_ids`/`variables` → `NotSupportedYet`
+- [x] T019 [US4] `app/controllers/api/ccn_submissions_documents_controller.rb` (`Api::CcnSubmissionsDocumentsController < Api::SubmissionsController`) — `skip_load_and_authorize_resource :template`, `skip_before_action :maybe_return_template_error`; `pdf`/`docx`/`html` actions: build transient via T018 step 1, set `params[:template_id]`, `Params::SubmissionCreateValidator.call`, defaults, `create_submissions`, webhooks, `Submissions.send_signature_requests`, completion loop (copied from upstream `create`), detach, render `Submissions::SerializeForApi.call(submission, params: {include: 'fields'})` merged with `schema`; rescue table → 422
+- [x] T020 [US4] `spec/requests/ccn_submissions_documents_spec.rb`: pdf with role Tenant + submitter role Tenant → single submission object with `documents: []`, `schema`, `fields`, `template_id` nil, no Template left; sign through `/s/:slug` (`sidekiq: :inline`) → 200 and result documents present; `merge_documents: true` → 1 schema item; `send_email: true` → `SubmitterMailer` job enqueued (fake) but nothing else; `template_ids` → 422; docx (stub) → same; html → same; bad submitter → upstream 422 preserved
+- [x] T021 [US4] Contract spec: 3 submission operations get conforming-response examples; `pending_operations` → `[]`
 
 **Checkpoint**: CI green; reviewer pass on phase 5.
 
 ## Phase 6: US5 — nothing 404s as Pro
 
-- [ ] T022 [US5] Assert in the contract spec that the 8 paths never return the Pro message (`ENTERPRISE_FEATURE_MESSAGE` absent) and that `ENTERPRISE_PATHS` no longer lists them; `CCN-CHANGES.md` table updated for every touched upstream file
+- [x] T022 [US5] Assert in the contract spec that the 8 paths never return the Pro message (`ENTERPRISE_FEATURE_MESSAGE` absent) and that `ENTERPRISE_PATHS` no longer lists them; `CCN-CHANGES.md` table updated for every touched upstream file
 
 ## Phase 7: Staging gate and release
 

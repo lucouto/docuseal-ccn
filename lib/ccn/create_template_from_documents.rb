@@ -14,15 +14,18 @@ module Ccn
     #   (or application_key), shared_link, remove_tags, flatten, dynamic
     # @param files [Array<ActionDispatch::Http::UploadedFile>] one per documents[] entry, same order
     # @param documents [Array] the raw documents[] entries (their `fields` are the explicit fields)
+    # @param transient [Boolean] a throw-away template for a template-less submission (research D7): no
+    #   external_id upsert, marked in preferences, no webhook and no search entry
     # @return [Template] saved and reloaded
-    def call(user:, params:, files:, documents: [])
+    def call(user:, params:, files:, documents: [], transient: false)
       raise Ccn::NotSupportedYet, 'dynamic documents' if dynamic?(params, documents)
       raise Ccn::DocumentParams::Invalid, 'documents[] is required' if files.empty?
 
-      external_id = params[:external_id].presence || params[:application_key].presence
+      external_id = params[:external_id].presence || params[:application_key].presence unless transient
       template = find_existing(user, external_id)
       event = template ? 'template.updated' : 'template.created'
       template ||= user.account.templates.new(author: user, source: :api)
+      template.preferences = template.preferences.merge('ccn_transient' => true) if transient
 
       Template.transaction do
         assign_attributes(template, user, params, files, external_id)
@@ -34,8 +37,10 @@ module Ccn
         template.save!
       end
 
-      WebhookUrls.enqueue_events(template, event)
-      SearchEntries.enqueue_reindex(template)
+      unless transient
+        WebhookUrls.enqueue_events(template, event)
+        SearchEntries.enqueue_reindex(template)
+      end
 
       template.reload
     end

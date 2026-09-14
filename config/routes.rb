@@ -29,6 +29,10 @@ Rails.application.routes.draw do
     resources :submitter_email_clicks, only: %i[create]
     resources :submitter_form_views, only: %i[create]
     resources :submitters, only: %i[index show update]
+    # CCN fork: submissions from documents, upstream Pro (specs/001-documents-by-any-route, FR-007/FR-013).
+    post 'submissions/pdf', to: 'ccn_submissions_documents#pdf'
+    post 'submissions/docx', to: 'ccn_submissions_documents#docx'
+    post 'submissions/html', to: 'ccn_submissions_documents#html'
     resources :submissions, only: %i[index show create update destroy] do
       resources :documents, only: %i[index], controller: 'submission_documents'
       collection do

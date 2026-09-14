@@ -122,9 +122,8 @@ module Ccn
 
     def coerce_string(key, value)
       raise AdminInvalid, I18n.t('ccn_invalid_setting_value', key:, type: 'string') unless value.is_a?(String)
-      check_size!(key, value)
 
-      value
+      check_size!(key, value)
     end
 
     # Members outside the list → 422; 'true'/'false' members become booleans (the UI's coercion); blank

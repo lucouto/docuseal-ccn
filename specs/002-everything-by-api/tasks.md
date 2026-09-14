@@ -62,9 +62,9 @@ description: "Task list for Stage 3 — everything else by API"
 
 ## Phase 8: Gate + release
 
-- [ ] T022 `staging-s3-check.sh` (operations directory): SC-002 sequence (user, webhook, folder, preference, config → read back → revert, account state unchanged) + SC-003 (`tools/list` with `$DOCUSEAL_MCP_TOKEN` when set; skipped with a note otherwise) + no-500 assertion
-- [ ] T023 Tag `3.2.4-ccn.4`, image build, `staging-deploy-tag.sh 3.2.4-ccn.4`, gates S1 + bounds + S2 + S3
-- [ ] T024 `CLAUDE.md` (operations directory) cheat sheet rewritten from `docs/openapi.json` + `docs/openapi-ccn.json`; `LOOP-STATE.md`; memory
+- [x] T022 `staging-s3-check.sh` (operations directory): SC-002 sequence (user, webhook, folder, preference, config → read back → revert, account state unchanged) + SC-003 (`tools/list` with `$DOCUSEAL_MCP_TOKEN` when set; skipped with a note otherwise) + no-500 assertion — one bug fixed after the first run (a comma-separated Python set literal nested in escaped quotes inside `check`'s eval tripped bash brace-expansion; computed separately instead); reran clean
+- [x] T023 Tag `3.2.4-ccn.4`, image build, `staging-deploy-tag.sh 3.2.4-ccn.4`, gates S1 + bounds + S2 + S3 — S1 PASS, bounds PASS, S2 27/27, S3 42/42
+- [x] T024 `CLAUDE.md` (operations directory) cheat sheet rewritten from `docs/openapi.json` + `docs/openapi-ccn.json`; `LOOP-STATE.md`; memory
 
 ## Dependencies
 

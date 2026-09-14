@@ -65,6 +65,7 @@ describe 'CCN Stage 1' do
     let(:total_formula) { "ROUND({{#{uuids['a']}}} * {{#{uuids['b']}}}, 2)" }
     let(:label_formula) { "Total: {{#{uuids['total']}}} EUR" }
     let(:bonus_condition) { { 'field_uuid' => uuids['a'], 'action' => 'greater_than', 'value' => '10' } }
+    let(:mortgage_formula) { "{{#{uuids['a']}}} * (1 + {{#{uuids['b']}}} / 100 / 12) ^ 360" }
 
     def field(name, type, required: true, **extra)
       {
@@ -250,6 +251,55 @@ describe 'CCN Stage 1' do
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_out_of_range'))
       expect(submitter.reload.completed_at).to be_nil
+    end
+
+    it 'bounds a numeric string literal the way dentaku will coerce it' do
+      template.update!(fields: template.fields.map do |f|
+        next f unless f['name'] == 'total'
+
+        f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} ^ IF({{#{uuids['b']}}} > 0, \"1e9\", 2)" })
+      end)
+
+      put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '2', uuids['b'] => '1' } }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_out_of_range'))
+
+      put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '2', uuids['b'] => '0' } }
+
+      expect(response).to have_http_status(:ok)
+      expect(submitter.reload.values[uuids['total']]).to eq(4)
+    end
+
+    it 'refuses an exact power whose result would run to tens of thousands of digits' do
+      template.update!(fields: template.fields.map do |f|
+        next f unless f['name'] == 'total'
+
+        f.merge('preferences' => { 'formula' => "({{#{uuids['a']}}} ^ 5) ^ {{#{uuids['b']}}}" })
+      end)
+
+      put "/s/#{submitter.slug}", params: {
+        completed: 'true', values: { uuids['a'] => '12345678901234567890', uuids['b'] => '1000' }
+      }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_out_of_range'))
+      expect(submitter.reload.completed_at).to be_nil
+    end
+
+    it 'still computes a 30-year monthly compound-interest formula' do
+      template.update!(fields: template.fields.map do |f|
+        next f unless f['name'] == 'total'
+
+        f.merge('preferences' => { 'formula' => "ROUND(#{mortgage_formula}, 2)" })
+      end)
+
+      put "/s/#{submitter.slug}", params: {
+        completed: 'true', values: { uuids['a'] => '100000', uuids['b'] => '4.75' }
+      }
+
+      expect(response).to have_http_status(:ok)
+      expect(submitter.reload.values[uuids['total']]).to be_within(0.02).of(100_000 * ((1 + (4.75 / 100 / 12))**360))
     end
 
     it 'translates every formula error in English and French' do

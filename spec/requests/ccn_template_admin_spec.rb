@@ -152,7 +152,10 @@ describe 'CCN template administration API' do
       expect(json['error']).to eq(I18n.t('ccn_version_documents_missing'))
       expect(template.reload.schema.first['attachment_uuid']).not_to eq('gone')
 
-      api :get, "/api/ccn/templates/#{create(:template).id}/versions"
+      stranger = create(:user)
+      foreign = create(:template, account: stranger.account, author: stranger)
+
+      api :get, "/api/ccn/templates/#{foreign.id}/versions"
       expect(response).to have_http_status(:not_found)
     end
   end

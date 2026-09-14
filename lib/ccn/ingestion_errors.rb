@@ -31,7 +31,7 @@ module Ccn
       when Pdfium::PdfiumError then I18n.t('ccn_invalid_document', message: error.message)
       when Vips::Error then I18n.t('ccn_invalid_image')
       else
-        error.class.name == 'Zip::Error' ? I18n.t('ccn_invalid_archive') : error.message
+        defined?(::Zip::Error) && error.is_a?(::Zip::Error) ? I18n.t('ccn_invalid_archive') : error.message
       end
     end
 

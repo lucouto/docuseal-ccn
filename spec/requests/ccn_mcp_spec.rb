@@ -5,7 +5,7 @@
 describe 'CCN MCP tools' do
   let(:account) { create(:account) }
   let(:admin) { create(:user, account:) }
-  let(:token) { admin.mcp_tokens.create! }
+  let(:token) { admin.mcp_tokens.create!(name: 'spec') }
   let(:headers) { { 'Authorization' => "Bearer #{token.token}", 'Content-Type' => 'application/json' } }
   let(:fixtures) { Rails.root.join('spec/fixtures') }
   let(:pdf_base64) { Base64.strict_encode64(fixtures.join('ccn/fieldtags.pdf').binread) }
@@ -83,11 +83,14 @@ describe 'CCN MCP tools' do
     expect(merged['name']).to eq('Bundle')
     expect(merged['documents'].size).to eq(3)
 
-    error, message = tool('merge_templates', { template_ids: [data['id'], create(:template).id] })
+    stranger = create(:user)
+    foreign = create(:template, account: stranger.account, author: stranger)
+
+    error, message = tool('merge_templates', { template_ids: [data['id'], foreign.id] })
     expect(error).to be(true)
     expect(message).to include('Template not found')
 
-    error, message = tool('update_template_documents', { template_id: create(:template).id, documents: [] })
+    error, message = tool('update_template_documents', { template_id: foreign.id, documents: [] })
     expect(error).to be(true)
     expect(message).to eq('Not found')
   end
@@ -118,7 +121,7 @@ describe 'CCN MCP tools' do
     expect(Template.count).to eq(templates_before)
   end
 
-  it 'manages users, webhooks, account configs and template preferences with the REST rules and messages' do
+  it 'manages users and webhooks with the REST rules and messages' do
     error, users = tool('manage_users', { action: 'list' })
     expect(error).to be(false)
     expect(users.pluck('id')).to eq([admin.id])
@@ -154,7 +157,9 @@ describe 'CCN MCP tools' do
     error, deleted = tool('manage_webhooks', { action: 'delete', id: webhook['id'] })
     expect(error).to be(false)
     expect(deleted).to eq('id' => webhook['id'], 'deleted' => true)
+  end
 
+  it 'manages account configs and template preferences with the REST rules and messages' do
     error, config = tool('account_config', { action: 'set', key: 'submitter_reminders',
                                              value: { first_duration: 'twenty_four_hours' } })
     expect(error).to be(false)

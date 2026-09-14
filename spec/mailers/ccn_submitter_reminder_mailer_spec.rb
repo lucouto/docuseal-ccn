@@ -6,7 +6,11 @@ describe CcnSubmitterReminderMailer do
   let(:account) { create(:account) }
   let(:template) { create(:template, account:) }
   let(:submission) { create(:submission, template:) }
-  let(:submitter) { create(:submitter, submission:, account:, email: 'signer@example.com', sent_at: 1.day.ago) }
+
+  before { create(:user, account:) } # Account#default_template_folder needs an author to assign templates to
+  let(:submitter) do
+    create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: 'signer@example.com', sent_at: 1.day.ago)
+  end
 
   it 'uses the template preference when present' do
     template.update!(preferences: { 'invitation_reminder_email_subject' => 'Template subject',

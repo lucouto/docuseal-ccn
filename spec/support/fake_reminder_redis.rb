@@ -9,8 +9,8 @@ class FakeReminderRedis
     @store = {}
   end
 
-  def set(key, value, nx:, ex:)
-    return false if nx && @store.key?(key)
+  def set(key, value, **opts)
+    return false if opts[:nx] && @store.key?(key)
 
     @store[key] = value
     true

@@ -14,7 +14,8 @@ class CcnSubmitterReminderMailer < SubmitterMailer
     @subject = template_preferences['invitation_reminder_email_subject'].presence
     @body = template_preferences['invitation_reminder_email_body'].presence
 
-    @email_config = AccountConfigs.find_for_account(@current_account, AccountConfig::SUBMITTER_INVITATION_REMINDER_EMAIL_KEY)
+    @email_config = AccountConfigs.find_for_account(@current_account,
+                                                    AccountConfig::SUBMITTER_INVITATION_REMINDER_EMAIL_KEY)
 
     @subject ||= @email_config&.value&.dig('subject').presence
     @body ||= fetch_config_email_body(@email_config, @submitter)

@@ -3,7 +3,7 @@
 # CCN fork — Stage 4, US1 (specs/003-p1-features): GET /api/ccn/reminders/due, POST /api/ccn/reminders/run.
 describe 'CCN reminders API' do
   let(:account) { create(:account) }
-  let(:admin) { create(:user, account:) }
+  let!(:admin) { create(:user, account:) } # also: Account#default_template_folder needs an author for templates
   let(:headers) { { 'x-auth-token': admin.access_token.token, 'Content-Type': 'application/json' } }
   let(:template) { create(:template, account:) }
 
@@ -16,7 +16,7 @@ describe 'CCN reminders API' do
   end
 
   before do
-    allow(Sidekiq).to receive(:redis) { |&block| block.call(FakeReminderRedis.new) }
+    allow(Sidekiq).to receive(:redis).and_yield(FakeReminderRedis.new)
   end
 
   it 'reports disabled when no reminders are configured' do
@@ -31,7 +31,8 @@ describe 'CCN reminders API' do
     expect(response).to have_http_status(:ok)
 
     submission = create(:submission, template:)
-    submitter = create(:submitter, submission:, account:, email: 'signer@example.com', sent_at: 2.hours.ago)
+    submitter = create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: 'signer@example.com',
+                                   sent_at: 2.hours.ago)
 
     api :get, '/api/ccn/reminders/due'
 
@@ -49,7 +50,8 @@ describe 'CCN reminders API' do
     api :put, '/api/ccn/account_configs/submitter_reminders', { value: { first_duration: 'one_hour' } }
 
     submission = create(:submission, template:)
-    submitter = create(:submitter, submission:, account:, email: 'signer@example.com', sent_at: 2.hours.ago)
+    submitter = create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: 'signer@example.com',
+                                   sent_at: 2.hours.ago)
 
     api :post, '/api/ccn/reminders/run', { dry_run: true }
 

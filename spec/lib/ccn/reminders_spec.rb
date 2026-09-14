@@ -10,7 +10,8 @@ describe Ccn::Reminders do
   let(:fake_redis) { FakeReminderRedis.new }
 
   before do
-    allow(Sidekiq).to receive(:redis) { |&block| block.call(fake_redis) }
+    create(:user, account:) # Account#default_template_folder needs an author to assign templates to
+    allow(Sidekiq).to receive(:redis).and_yield(fake_redis)
     ActionMailer::Base.deliveries.clear
   end
 
@@ -22,7 +23,7 @@ describe Ccn::Reminders do
 
   def submitter_sent(**attrs)
     submission = create(:submission, template:)
-    create(:submitter, submission:, account:, email: Faker::Internet.email, **attrs)
+    create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: Faker::Internet.email, **attrs)
   end
 
   it 'mirrors AccountConfigs::REMINDER_DURATIONS exactly' do
@@ -66,7 +67,7 @@ describe Ccn::Reminders do
       travel_to(now + 3.days) do
         rows = described_class.due(account)
 
-        expect(rows.map { |r| r[:stage] }).to eq([2])
+        expect(rows.pluck(:stage)).to eq([2])
 
         described_class.run(account:, now: now + 3.days)
 
@@ -76,7 +77,7 @@ describe Ccn::Reminders do
       travel_to(now + 7.days) do
         rows = described_class.due(account)
 
-        expect(rows.map { |r| r[:stage] }).to eq([3])
+        expect(rows.pluck(:stage)).to eq([3])
 
         described_class.run(account:, now: now + 7.days)
 
@@ -138,7 +139,7 @@ describe Ccn::Reminders do
     it 'never sent (sent_at nil) is never due' do
       configure_durations(first: 'one_hour', second: nil, third: nil)
 
-      create(:submitter, submission: create(:submission, template:), account:, sent_at: nil)
+      create(:submitter, submission: create(:submission, template:), account:, uuid: SecureRandom.uuid, sent_at: nil)
 
       expect(described_class.due(account)).to eq([])
     end

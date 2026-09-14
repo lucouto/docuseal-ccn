@@ -68,8 +68,8 @@ describe Templates::FindTextTagFields do
   describe '.parse' do
     it 'reads the first segment as the name and the rest as attributes' do
       expect(described_class.parse('Foo')).to eq('name' => 'Foo')
-      expect(described_class.parse(' Foo ; Type=Date ; role=Tenant ')).to eq('name' => 'Foo', 'type' => 'Date',
-                                                                              'role' => 'Tenant')
+      parsed = described_class.parse(' Foo ; Type=Date ; role=Tenant ')
+      expect(parsed).to eq('name' => 'Foo', 'type' => 'Date', 'role' => 'Tenant')
       expect(described_class.parse('name=Foo;type=date')).to eq('name' => 'Foo', 'type' => 'date')
     end
 

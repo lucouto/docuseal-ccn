@@ -11,11 +11,6 @@ describe 'OpenAPI contract' do
   # Pro-only in upstream 3.2.4 — implemented by the CCN fork in Stage 2 (FORK-PLAN.md §3.1).
   let(:pending_operations) do
     [
-      %w[post /templates/pdf],
-      %w[post /templates/docx],
-      %w[post /templates/html],
-      %w[post /templates/merge],
-      %w[put /templates/{id}/documents],
       %w[post /submissions/pdf],
       %w[post /submissions/docx],
       %w[post /submissions/html]
@@ -40,6 +35,8 @@ describe 'OpenAPI contract' do
     create(:submission, :with_submitters, template:, created_by_user: author, name: 'Contract submission')
   end
   let(:submitter) { submission.submitters.first }
+  let(:fieldtags_base64) { Base64.strict_encode64(Rails.root.join('spec/fixtures/ccn/fieldtags.pdf').binread) }
+  let(:gotenberg_url) { 'http://gotenberg.test:3000' }
 
   def expect_conforming_response(method, path, status: 200)
     operation = OpenapiContract.operations.find { |op| op[:method] == method && op[:path] == path }
@@ -96,6 +93,58 @@ describe 'OpenAPI contract' do
       delete "/api/templates/#{template.id}", headers: headers
 
       expect_conforming_response('delete', '/templates/{id}')
+    end
+
+    # CCN fork, Stage 2: the operations upstream reserves for Pro (Gotenberg stubbed with the tag fixture).
+    it 'POST /templates/pdf' do
+      body = { name: 'Contract pdf', documents: [{ name: 'tags', file: fieldtags_base64 }] }
+
+      post '/api/templates/pdf', headers: headers, params: body.to_json
+
+      expect_conforming_response('post', '/templates/pdf')
+    end
+
+    it 'POST /templates/docx' do
+      stub_const('Ccn::GOTENBERG_URL', gotenberg_url)
+      stub_request(:post, "#{gotenberg_url}/forms/libreoffice/convert")
+        .to_return(status: 200, body: Base64.strict_decode64(fieldtags_base64))
+      docx = Base64.strict_encode64(Rails.root.join('spec/fixtures/fieldtags.docx').binread)
+
+      body = { name: 'Contract docx', documents: [{ name: 'tags', file: docx }] }
+
+      post '/api/templates/docx', headers: headers, params: body.to_json
+
+      expect_conforming_response('post', '/templates/docx')
+    end
+
+    it 'POST /templates/html' do
+      stub_const('Ccn::GOTENBERG_URL', gotenberg_url)
+      stub_request(:post, "#{gotenberg_url}/forms/chromium/convert/html")
+        .to_return(status: 200, body: Base64.strict_decode64(fieldtags_base64))
+
+      body = { name: 'Contract html', html: '<p><text-field name="A"></text-field></p>' }
+
+      post '/api/templates/html', headers: headers, params: body.to_json
+
+      expect_conforming_response('post', '/templates/html')
+    end
+
+    it 'POST /templates/merge' do
+      other = create(:template, account:, author:)
+
+      body = { name: 'Contract merge', template_ids: [template.id, other.id] }
+
+      post '/api/templates/merge', headers: headers, params: body.to_json
+
+      expect_conforming_response('post', '/templates/merge')
+    end
+
+    it 'PUT /templates/{id}/documents' do
+      body = { documents: [{ name: 'tags', file: fieldtags_base64 }] }
+
+      put "/api/templates/#{template.id}/documents", headers: headers, params: body.to_json
+
+      expect_conforming_response('put', '/templates/{id}/documents')
     end
   end
 

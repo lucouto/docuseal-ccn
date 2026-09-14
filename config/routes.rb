@@ -36,6 +36,13 @@ Rails.application.routes.draw do
         resources :emails, only: %i[create], controller: 'submissions', as: :submissions_emails
       end
     end
+    # CCN fork: template ingestion upstream reserves for Pro (specs/001-documents-by-any-route, FR-007).
+    post 'templates/pdf', to: 'ccn_templates_documents#pdf'
+    post 'templates/docx', to: 'ccn_templates_documents#docx'
+    post 'templates/doc', to: 'ccn_templates_documents#docx'
+    post 'templates/html', to: 'ccn_templates_documents#html'
+    post 'templates/merge', to: 'ccn_templates_documents#merge'
+    put 'templates/:id/documents', to: 'ccn_templates_documents#update'
     resources :templates, only: %i[update show index destroy] do
       resources :clone, only: %i[create], controller: 'templates_clone'
       resources :submissions, only: %i[index create]

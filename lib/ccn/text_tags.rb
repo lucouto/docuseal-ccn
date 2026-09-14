@@ -12,26 +12,34 @@ module Ccn
 
     module_function
 
-    # @return [Result, nil] nil when nothing applies (no extraction, document too large, no tags)
+    # @return [Result, nil] nil when nothing applies (no extraction, document too large, no tags and no flatten)
     def call(doc, data, attachment_uuid, params, extract_fields:)
       return unless extract_fields && data.size < ::Templates::ProcessDocument::MAX_FLATTEN_FILE_SIZE
 
       tag_fields, redactions = detect(doc, attachment_uuid)
+      flatten = flatten?(params) && doc.form?
 
-      return if tag_fields.blank?
+      return if tag_fields.blank? && !flatten
 
       acro_fields = ::Templates::FindPdfiumAcroFields.call(AttachmentStub.new(attachment_uuid), doc, data)
       fields = acro_fields.map(&:deep_stringify_keys) + tag_fields
+      redactions = {} unless remove_tags?(params)
 
-      return Result.new(fields:, data:, doc:) unless remove_tags?(params)
+      return Result.new(fields:, data:, doc:) if redactions.empty? && !flatten
 
-      redacted = redact(doc, redactions)
+      rewritten = rewrite(doc, redactions, flatten:)
 
-      Result.new(fields:, data: redacted, doc: Pdfium::Document.open_bytes(redacted))
+      Result.new(fields:, data: rewritten, doc: Pdfium::Document.open_bytes(rewritten))
     end
 
     def remove_tags?(params)
       !params[:remove_tags].to_s.casecmp?('false')
+    end
+
+    # API `flatten: true` (POST /templates/pdf, /submissions/pdf): the AcroForm widgets are detected as
+    # fields above and then baked into the page content, so the stored PDF has no interactive form left.
+    def flatten?(params)
+      params[:flatten].to_s.casecmp?('true')
     end
 
     # Detection must never turn a working upload into a 500: on any failure the document takes the upstream
@@ -45,10 +53,12 @@ module Ccn
       [[], {}]
     end
 
-    # Erases the rectangles page by page, saves the document and closes the original handle. The handle of a
-    # password-protected upload still carries its security handler after decrypt_document, hence the flag.
-    def redact(doc, redactions)
+    # Erases the rectangles page by page (and flattens every page when asked), saves the document and closes
+    # the original handle. The handle of a password-protected upload still carries its security handler after
+    # decrypt_document, hence the flag.
+    def rewrite(doc, redactions, flatten: false)
       redactions.each { |page_index, rects| doc.get_page(page_index).redact(rects) }
+      doc.page_count.times { |page_index| doc.get_page(page_index).flatten } if flatten
 
       io = StringIO.new
       doc.save(io, flags: Pdfium::FPDF_REMOVE_SECURITY)

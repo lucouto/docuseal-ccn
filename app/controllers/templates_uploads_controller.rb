@@ -35,11 +35,7 @@ class TemplatesUploadsController < ApplicationController
   rescue Templates::CreateAttachments::PdfEncrypted
     render turbo_stream: turbo_stream.append(params[:form_id], html: helpers.tag.prompt_password)
   rescue StandardError => e
-    if e.is_a?(Ccn::Gotenberg::Error) # CCN: no partial template; ApplicationController's rescue_from shows the message
-      @template.destroy if @template.persisted? && @template.schema.blank?
-
-      raise
-    end
+    ccn_reraise_conversion_error!(e)
 
     Rollbar.error(e) if defined?(Rollbar)
 
@@ -49,6 +45,16 @@ class TemplatesUploadsController < ApplicationController
   end
 
   private
+
+  # CCN: a conversion failure leaves no partial template and reaches ApplicationController's rescue_from
+  # (translated alert) instead of the generic message below.
+  def ccn_reraise_conversion_error!(error)
+    return unless error.is_a?(Ccn::Gotenberg::Error)
+
+    @template.destroy if @template.persisted? && @template.schema.blank?
+
+    raise error
+  end
 
   def save_template!(template, url_params)
     template.account = current_account

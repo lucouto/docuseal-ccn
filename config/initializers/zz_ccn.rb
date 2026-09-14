@@ -17,4 +17,4 @@ module Ccn
 end
 
 # Fork strings, loaded after upstream's config/locales/i18n.yml so they can add or override keys.
-I18n.load_path += Dir[Rails.root.join('config/locales/ccn/**/*.yml')]
+I18n.load_path += Rails.root.glob('config/locales/ccn/**/*.yml')

@@ -66,6 +66,9 @@ describe 'CCN Stage 1' do
     let(:label_formula) { "Total: {{#{uuids['total']}}} EUR" }
     let(:bonus_condition) { { 'field_uuid' => uuids['a'], 'action' => 'greater_than', 'value' => '10' } }
     let(:mortgage_formula) { "{{#{uuids['a']}}} * (1 + {{#{uuids['b']}}} / 100 / 12) ^ 360" }
+    let(:annuity_formula) do
+      "{{#{uuids['a']}}} * ({{#{uuids['b']}}} / 100 / 12) / (1 - (1 + {{#{uuids['b']}}} / 100 / 12) ^ -360)"
+    end
 
     def field(name, type, required: true, **extra)
       {
@@ -257,7 +260,9 @@ describe 'CCN Stage 1' do
       template.update!(fields: template.fields.map do |f|
         next f unless f['name'] == 'total'
 
-        f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} ^ IF({{#{uuids['b']}}} > 0, \"1e9\", 2)" })
+        # "1001" rather than "1e9": if the coercion regressed, 2 ^ 1001 is computed instantly and the example
+        # fails with a 200 instead of hanging CI on an exact 2 ^ 1000000000.
+        f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} ^ IF({{#{uuids['b']}}} > 0, \"1001\", 2)" })
       end)
 
       put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '2', uuids['b'] => '1' } }
@@ -300,6 +305,22 @@ describe 'CCN Stage 1' do
 
       expect(response).to have_http_status(:ok)
       expect(submitter.reload.values[uuids['total']]).to be_within(0.02).of(100_000 * ((1 + (4.75 / 100 / 12))**360))
+    end
+
+    it 'still computes a 30-year annuity payment, which needs a negative exponent' do
+      template.update!(fields: template.fields.map do |f|
+        f['name'] == 'total' ? f.merge('preferences' => { 'formula' => "ROUND(#{annuity_formula}, 2)" }) : f
+      end)
+
+      put "/s/#{submitter.slug}", params: {
+        completed: 'true', values: { uuids['a'] => '100000', uuids['b'] => '4.75' }
+      }
+
+      monthly_rate = 4.75 / 100 / 12
+
+      expect(response).to have_http_status(:ok)
+      expect(submitter.reload.values[uuids['total']])
+        .to be_within(0.02).of(100_000 * monthly_rate / (1 - ((1 + monthly_rate)**-360)))
     end
 
     it 'translates every formula error in English and French' do

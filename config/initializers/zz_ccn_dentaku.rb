@@ -14,7 +14,13 @@ module Ccn
   module FormulaBounds
     MAX_BASE_DIGITS = 100 # digits needed to write the left operand of ^ in plain decimal
     MAX_EXPONENT = 1000 # absolute value of the right operand of ^
-    MAX_RESULT_DIGITS = 20_000 # base digits × exponent: the size of the exact result (20-digit ^ 1000 ≈ 27 ms)
+    # base digits × |exponent| = size of the exact result. The base of a rate-divided compounding formula
+    # such as 1 + {{rate}} / 100 / 12 has 35-36 digits, so 40 000 admits every positive exponent up to
+    # MAX_EXPONENT (≈ 50-100 ms worst case). A negative exponent costs ~5× more per digit (reciprocal
+    # division), so its budget is smaller but still admits (1 + r / 12) ^ -360 annuity formulas (≈ 12 600
+    # digits, ≈ 70 ms worst case).
+    MAX_RESULT_DIGITS = 40_000
+    MAX_RESULT_DIGITS_NEGATIVE = 15_000
     MAX_SHIFT = 64 # absolute value of the right operand of << and >>
 
     module_function
@@ -24,18 +30,22 @@ module Ccn
       exponent_decimal = bounded!(exponent) { |decimal| decimal.abs <= MAX_EXPONENT }
 
       return unless base_decimal && exponent_decimal
-      raise FormulaOutOfRange if base_decimal.precision * exponent_decimal.abs > MAX_RESULT_DIGITS
       raise FormulaNotANumber if base_decimal.negative? && exponent_decimal.frac.nonzero?
+
+      budget = exponent_decimal.negative? ? MAX_RESULT_DIGITS_NEGATIVE : MAX_RESULT_DIGITS
+
+      raise FormulaOutOfRange if base_decimal.precision * exponent_decimal.abs > budget
     end
 
     def check_shift!(shift)
       bounded!(shift) { |decimal| decimal.abs <= MAX_SHIFT }
     end
 
-    # Operands are coerced the way dentaku's Arithmetic#cast will coerce them (a numeric string such as
-    # "1e9" from an IF branch becomes a number), so the bound applies to what dentaku will actually compute
-    # with. Whatever is still not a number is left to dentaku's own type errors. Numbers must be finite
-    # reals that satisfy the block (NaN, Infinity and Complex are refused).
+    # Operands are coerced the way dentaku's Arithmetic#cast coerces them for ^ (a numeric string such as
+    # "1e9" reached through an IF branch becomes a number), so the bound applies to what ^ will actually
+    # compute with. Dentaku's Bitwise does not coerce, so for << and >> a numeric string is bounded here and
+    # then rejected by dentaku itself. Whatever is still not a number is left to dentaku's own type errors.
+    # Numbers must be finite reals that satisfy the block (NaN, Infinity and Complex are refused).
     def bounded!(operand)
       operand = Dentaku::NumericParser.ensure_numeric(operand) || operand
 

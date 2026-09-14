@@ -214,10 +214,11 @@ describe 'CCN Stage 1' do
     end
 
     it 'counts an array with several items as 0, like a blank value' do
+      options = %w[3 4].map { |v| { 'uuid' => SecureRandom.uuid, 'value' => v } }
+
       template.update!(fields: template.fields.map do |f|
         case f['name']
-        when 'b'
-          f.merge('type' => 'multiple', 'options' => %w[3 4].map { |v| { 'uuid' => SecureRandom.uuid, 'value' => v } })
+        when 'b' then f.merge('type' => 'multiple', 'options' => options)
         when 'total' then f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} * {{#{uuids['b']}}} + 1" })
         else f
         end

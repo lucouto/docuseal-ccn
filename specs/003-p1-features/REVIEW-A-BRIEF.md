@@ -8,27 +8,28 @@ not a restatement of this brief.
 ## Scope
 
 **Review this and only this**: phases 1–3 of `specs/003-p1-features/tasks.md` (T001–T010) — automated signer
-reminders (User Story 1). That is everything from the merge-base below up to and including commit `3e922d0e`
-on branch `ccn`.
+reminders (User Story 1). That is everything from the merge-base below up to and including commit `016ef469`
+on branch `ccn`. **CI is green on all 5 jobs** (rubocop, eslint, brakeman, rspec, erblint) as of that commit —
+confirm this hasn't regressed before you start: `gh run list -R lucouto/docuseal-ccn --json headSha,status,conclusion -L 3`.
 
 ```bash
 cd ~/Projets_apps_github/docuseal-ccn
-git diff be6b5933..3e922d0e --stat   # the full file list
-git diff be6b5933..3e922d0e          # the full diff
+git diff be6b5933..016ef469 --stat   # the full file list
+git diff be6b5933..016ef469          # the full diff
 ```
 
 `be6b5933` is the tip of Stage 3 (already reviewed and shipped as `3.2.4-ccn.4`). Everything after it is Stage
 4 so far: three commits are the Spec-Kit paper trail (`49a47f1c` spec+research, `afce2904` plan+data-model+
 contracts+quickstart+checklist, `7c7aeb0e` tasks.md) — skim these for context but they are docs, not code, and
-don't need a code review. The four commits that matter are:
+don't need a code review. `563332de` (this brief) is also docs-only. The commits that matter for a code review:
 
 - `55c4cfd3` — the actual implementation (phases 1–3).
-- `1d9cedbb`, `3e922d0e` — two rounds of CI-driven fixes. **Read these carefully: they touch only spec files
-  and one line-wrap in `app/mailers/ccn_submitter_reminder_mailer.rb`. No production logic changed between
-  `55c4cfd3` and `3e922d0e`** — the fixes were rubocop style and test-fixture gaps (a fresh `Account` needs a
+- `1d9cedbb`, `3e922d0e`, `016ef469` — three rounds of CI-driven fixes. **Read these carefully: they touch
+  only spec files and one line-wrap in `app/mailers/ccn_submitter_reminder_mailer.rb`. No production logic
+  changed after `55c4cfd3`** — the fixes were rubocop style and test-fixture gaps (a fresh `Account` needs a
   `User` before a `Template` can be created under it; `Submitter` has no default `uuid`; `Accounts.
   can_send_emails?` is `false` by default in the test environment). If you want to sanity-check that claim
-  yourself: `git diff 55c4cfd3..3e922d0e -- app/ lib/ config/` should be one hunk.
+  yourself: `git diff 55c4cfd3..016ef469 -- app/ lib/ config/` should be one hunk (the line-wrap).
 
 **Out of scope**: phases 4–8 (logo, roles, docs, optional bulk, gate+release) don't exist yet — don't review
 code that isn't there, and don't flag `CCN-CHANGES.md` as stale for Stage 4 (it's genuinely not updated yet;
@@ -44,9 +45,9 @@ that's `tasks.md` T022, scheduled for phase 6, not an oversight in phases 1–3)
   mailer, API observability) and `spec.md`'s FR-001 through FR-005 and User Story 1's acceptance scenarios.
   `data-model.md`'s "Reminders" section is the precise contract (due-rule pseudocode, the `run` JSON shape,
   the mailer's resolution order) — treat it as the spec for this diff, not just background reading.
-- **CI state**: as of this brief, CI had gone through two failed rounds (rubocop + missing test fixtures,
-  both fixed) and a third push (`3e922d0e`) was in flight. Check current status before concluding "CI green"
-  either way: `gh run list -R lucouto/docuseal-ccn --json headSha,status,conclusion -L 3`. If it's still red on
+- **CI state**: green on `016ef469` (all 5 jobs), after three rounds of fixes (rubocop style + missing test
+  fixtures — none of them production-logic changes, see above). Re-confirm it hasn't regressed since:
+  `gh run list -R lucouto/docuseal-ccn --json headSha,status,conclusion -L 3`. If it's red on
   something other than what this brief describes as already fixed, that is itself a finding.
 
 ## Where to look harder

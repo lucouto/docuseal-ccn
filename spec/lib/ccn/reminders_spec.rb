@@ -141,6 +141,18 @@ describe Ccn::Reminders do
       expect(described_class.due(account, now:)).to be_empty
     end
 
+    it 'orders by sent_at, not due_at, when stages and durations differ' do
+      configure_durations(first: 'twenty_four_hours', second: 'one_hour', third: nil)
+      now = Time.current
+
+      older = submitter_sent(sent_at: now - 25.hours) # stage 1, 24h → fell due an hour ago
+      newer = submitter_sent(sent_at: now - 3.hours)  # stage 2, 1h  → fell due two hours ago
+      create(:submission_event, submitter: newer, submission: newer.submission,
+                                event_type: 'send_reminder_email')
+
+      expect(described_class.due(account, now:).pluck(:submitter_id)).to eq([older.id, newer.id])
+    end
+
     it 'never sent (sent_at nil) is never due' do
       configure_durations(first: 'one_hour', second: nil, third: nil)
 
@@ -199,6 +211,20 @@ describe Ccn::Reminders do
       described_class.run(account:, now:)
 
       expect(fake_redis.instance_variable_get(:@store)).not_to have_key(described_class.lock_key(account))
+    end
+
+    it 'skips an unroutable address and keeps sweeping the signers queued behind it' do
+      configure_durations(first: 'one_hour', second: nil, third: nil)
+      now = Time.current
+      # ordered oldest sent_at first, so the bad row is reached before the good one
+      invalid = submitter_sent(sent_at: now - 3.hours, email: 'signer-without-an-at-sign')
+      valid = submitter_sent(sent_at: now - 2.hours)
+
+      result = described_class.run(account:, now:)
+
+      expect(result).to eq(sent: 1, skipped: { 'invalid_email' => 1 }, locked: false, disabled: false)
+      expect(invalid.submission_events.where(event_type: 'send_reminder_email')).to be_none
+      expect(valid.submission_events.where(event_type: 'send_reminder_email')).to be_one
     end
 
     it 'caps deliveries at CCN_REMINDERS_MAX_PER_RUN, oldest sent_at first' do

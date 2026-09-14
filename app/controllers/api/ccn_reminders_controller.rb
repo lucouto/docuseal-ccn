@@ -13,7 +13,9 @@ module Api
     end
 
     def run
-      render json: Ccn::Reminders.run(account: current_account, dry_run: Ccn::DocumentParams.boolean(params[:dry_run]))
+      dry_run = Ccn::DocumentParams.strict_boolean(params[:dry_run], 'dry_run')
+
+      render json: Ccn::Reminders.run(account: current_account, dry_run:)
     end
 
     private

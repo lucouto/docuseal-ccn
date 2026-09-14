@@ -13,6 +13,8 @@ module Ccn
                      phone heading strikethrough].freeze
     # ActiveStorage's filename column is 255 bytes on some databases; room is left for the detected extension.
     MAX_FILENAME_BYTES = 200
+    BOOLEAN_TRUE = %w[true 1 t yes y on].freeze
+    BOOLEAN_FALSE = %w[false 0 f no n off].freeze
     # Extension given to a base64 upload without a name (Rack::Mime's reverse lookup is first-match: .jpe).
     EXTENSIONS = {
       'application/pdf' => '.pdf', 'image/png' => '.png', 'image/jpeg' => '.jpg', 'image/gif' => '.gif',
@@ -139,6 +141,22 @@ module Ccn
 
     def boolean(value)
       ActiveModel::Type::Boolean.new.cast(value) == true
+    end
+
+    # `boolean` above is Rails' loose cast: every unrecognized non-empty string is true. That is the right
+    # reading for a field flag, but it would let `dry_run=banana` silently pick the wrong mode on a
+    # side-effecting endpoint, so a flag that changes what the request *does* parses strictly — anything
+    # unrecognized is a client error (AdminErrors renders Invalid as a 422).
+    def strict_boolean(value, name, default: false)
+      return default if value.to_s.strip.blank?
+      return value if [true, false].include?(value)
+
+      normalized = value.to_s.strip.downcase
+
+      return true if BOOLEAN_TRUE.include?(normalized)
+      return false if BOOLEAN_FALSE.include?(normalized)
+
+      raise Invalid, "#{name} must be true or false"
     end
 
     def indifferent(hash)

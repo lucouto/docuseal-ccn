@@ -41,6 +41,17 @@ describe CcnSubmitterReminderMailer do
     expect(mail.body.encoded).to include('You have been invited to sign the')
   end
 
+  it 'resolves the default text in the account locale, not the process locale' do
+    account.update!(locale: 'fr-FR')
+
+    # .message forces the mailer action to run here: ActionMailer is lazy, so a bare call would be evaluated
+    # outside this block and the locale under test would not be the one in effect.
+    mail = I18n.with_locale(:en) { described_class.reminder_email(submitter).message }
+
+    expect(mail.subject).to eq(I18n.t(:you_are_invited_to_sign_a_document, locale: 'fr-FR'))
+    expect(mail.subject).not_to eq(I18n.t(:you_are_invited_to_sign_a_document, locale: :en))
+  end
+
   it 'is addressed to the submitter and records a reminder tag' do
     mail = described_class.reminder_email(submitter)
 

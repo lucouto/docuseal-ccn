@@ -62,6 +62,20 @@ describe 'CCN reminders API' do
     expect(submitter.submission_events.where(event_type: 'send_reminder_email')).to be_none
   end
 
+  it 'rejects a malformed dry_run instead of silently picking a mode' do
+    api :put, '/api/ccn/account_configs/submitter_reminders', { value: { first_duration: 'one_hour' } }
+
+    submission = create(:submission, template:)
+    submitter = create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: 'signer@example.com',
+                                   sent_at: 2.hours.ago)
+
+    api :post, '/api/ccn/reminders/run', { dry_run: 'banana' }
+
+    expect(response).to have_http_status(:unprocessable_content)
+    expect(json['error']).to include('dry_run')
+    expect(submitter.submission_events.where(event_type: 'send_reminder_email')).to be_none
+  end
+
   it 'refuses an unauthenticated request' do
     get '/api/ccn/reminders/due'
 

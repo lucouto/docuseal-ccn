@@ -20,10 +20,6 @@ class CcnSubmitterReminderMailer < SubmitterMailer
     @subject ||= @email_config&.value&.dig('subject').presence
     @body ||= fetch_config_email_body(@email_config, @submitter)
 
-    default = AccountConfig::DEFAULT_VALUES.fetch(AccountConfig::SUBMITTER_INVITATION_REMINDER_EMAIL_KEY).call
-    @subject ||= default['subject']
-    @body ||= default['body']
-
     assign_message_metadata('submitter_reminder', @submitter)
 
     reply_to = build_submitter_reply_to(@submitter, email_config: @email_config)
@@ -31,6 +27,12 @@ class CcnSubmitterReminderMailer < SubmitterMailer
     maybe_set_custom_domain(@submitter)
 
     I18n.with_locale(@current_account.locale) do
+      # DEFAULT_VALUES translates on call, so it has to resolve in the account's locale — outside this block
+      # a French account with no override would get the process locale's text (normally English).
+      default = AccountConfig::DEFAULT_VALUES.fetch(AccountConfig::SUBMITTER_INVITATION_REMINDER_EMAIL_KEY).call
+      @subject ||= default['subject']
+      @body ||= default['body']
+
       subject = ReplaceEmailVariables.call(@subject, submitter:)
 
       mail(

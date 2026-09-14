@@ -90,4 +90,34 @@ describe Ccn::DocumentParams do
       end.to raise_error(described_class::Invalid, /starting from 1/)
     end
   end
+
+  describe '.strict_boolean' do
+    it 'accepts the usual spellings of both values, in either case' do
+      [true, 'true', 'TRUE', ' t ', '1', 'yes', 'on'].each do |value|
+        expect(described_class.strict_boolean(value, 'dry_run')).to be(true)
+      end
+
+      [false, 'false', 'FALSE', 'f', '0', 'no', 'off'].each do |value|
+        expect(described_class.strict_boolean(value, 'dry_run')).to be(false)
+      end
+    end
+
+    it 'falls back to the default when the flag is absent' do
+      expect(described_class.strict_boolean(nil, 'dry_run')).to be(false)
+      expect(described_class.strict_boolean('', 'dry_run')).to be(false)
+      expect(described_class.strict_boolean(nil, 'dry_run', default: true)).to be(true)
+    end
+
+    it 'refuses a value it cannot read rather than guessing a mode' do
+      ['banana', 'truthy', '2', 'off!'].each do |value|
+        expect { described_class.strict_boolean(value, 'dry_run') }
+          .to raise_error(described_class::Invalid, /dry_run must be true or false/)
+      end
+    end
+
+    it 'differs from the loose cast, which reads any non-empty string as true' do
+      expect(described_class.boolean('banana')).to be(true)
+      expect { described_class.strict_boolean('banana', 'dry_run') }.to raise_error(described_class::Invalid)
+    end
+  end
 end

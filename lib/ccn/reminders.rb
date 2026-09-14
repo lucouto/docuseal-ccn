@@ -48,7 +48,7 @@ module Ccn
       return [] if durations.blank?
 
       candidates(account, durations, now).filter_map { |submitter| due_row(submitter, durations, now) }
-                                         .sort_by { |row| row[:due_at] }
+                                         .sort_by { |row| row[:submitter].sent_at }
     end
 
     # @return [Hash] { sent:, skipped: { reason => count }, locked:, disabled: } — dry_run computes the same
@@ -133,11 +133,18 @@ module Ccn
       skipped = Hash.new(0)
 
       rows.each do |row|
-        if Accounts.can_send_emails?(account)
+        unless Accounts.can_send_emails?(account)
+          skipped['no_email_delivery_configured'] += 1
+          next
+        end
+
+        begin
           deliver!(row[:submitter])
           sent += 1
-        else
-          skipped['no_email_delivery_configured'] += 1
+        rescue Submitters::ValidateSending::InvalidEmail
+          # One unroutable address must not unwind the sweep: the rows queued behind it would never be
+          # processed, and the signer stays due until LATE_GRACE expires. Count it and carry on.
+          skipped['invalid_email'] += 1
         end
       end
 

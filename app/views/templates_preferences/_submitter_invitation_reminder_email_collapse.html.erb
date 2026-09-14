@@ -6,14 +6,18 @@
   <div class="collapse-content">
     <div id="<%= AccountConfig::SUBMITTER_INVITATION_REMINDER_EMAIL_KEY %>_form">
       <% configs = AccountConfigs.find_or_initialize_for_key(current_account, AccountConfig::SUBMITTER_INVITATION_REMINDER_EMAIL_KEY).value %>
-      <% template_email_preferences_values = @template.preferences.values_at('invitation_reminder_email_subject', 'invitation_reminder_email_body').compact_blank.presence %>
-      <% is_custom_template_email = template_email_preferences_values.present? %>
+      <%# Subject and body fall back independently: compacting the pair would shift a body-only override
+          (which PUT /api/templates/{id} and set_template_preferences can both save) into the subject field. %>
+      <% template_email_subject = @template.preferences['invitation_reminder_email_subject'].presence %>
+      <% template_email_body = @template.preferences['invitation_reminder_email_body'].presence %>
+      <% config_email_subject, config_email_body = configs.values_at('subject', 'body') %>
+      <% is_custom_template_email = template_email_subject.present? || template_email_body.present? %>
       <% if is_custom_template_email %>
         <%= button_to nil, template_preferences_path(@template), id: 'submitter_invitation_reminder_email_reset_link', method: :delete, class: 'hidden', params: { config_key: AccountConfig::SUBMITTER_INVITATION_REMINDER_EMAIL_KEY }, data: { turbo_confirm: t('are_you_sure_') }, form: { data: { close_on_submit: false } } %>
       <% end %>
       <%= form_for @template, url: template_preferences_path(@template), method: :post, html: { autocomplete: 'off', class: 'mt-1', id: 'submitter_invitation_reminder_email_template_form' }, data: { close_on_submit: false } do |f| %>
         <toggle-on-submit data-element-id="email_saved_alert_reminder"></toggle-on-submit>
-        <%= f.fields_for :preferences, Struct.new(:invitation_reminder_email_subject, :invitation_reminder_email_body).new(*(template_email_preferences_values || configs.values_at('subject', 'body'))) do |ff| %>
+        <%= f.fields_for :preferences, Struct.new(:invitation_reminder_email_subject, :invitation_reminder_email_body).new(template_email_subject || config_email_subject, template_email_body || config_email_body) do |ff| %>
           <div class="form-control">
             <div class="flex justify-between">
               <div class="flex items-center">

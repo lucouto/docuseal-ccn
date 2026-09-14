@@ -96,6 +96,42 @@ time here rather than spreading evenly across the diff:
    facts about this codebase's test environment — but double check they're *actually* generalizable and not a
    symptom of something more specific being subtly wrong in how these tests build their fixtures.
 
+## Review A outcome (2026-09-14)
+
+Review A ran and returned five findings; all five are fixed. Three of them landed on areas this brief had
+already singled out, so those items above are now **answered, not open** — read this section as superseding
+them where they disagree.
+
+- **Area 3 (Redis lock / a raise inside `deliver_due`'s loop)** — the lock was never leaked (`run`'s `ensure`
+  always releases it), but the raise aborted the sweep: one unroutable address starved every signer queued
+  behind it until `LATE_GRACE` expired. Resolved the way this item proposed — a `rescue
+  Submitters::ValidateSending::InvalidEmail` inside the loop, counted as `skipped['invalid_email']`. The
+  rescue is deliberately narrow: an SMTP failure mid-sweep still unwinds the run, because widening it touches
+  Sidekiq retry semantics and is a separate decision.
+- **Area 5 (`dry_run` parsing)** — this item asked for a malformed value to degrade to `false`. **That is no
+  longer the intended behaviour and the code does not do it.** `Ccn::DocumentParams.boolean` is Rails' loose
+  cast, so `dry_run: "banana"` was becoming `true` — the endpoint reported a list of signers and sent nothing,
+  with no way for the operator to tell. Degrading to `false` is the worse failure on a side-effecting endpoint:
+  a typo would silently e-mail every due signer. `#run` now uses the new `Ccn::DocumentParams.strict_boolean`,
+  which accepts the usual spellings of both values and raises `Invalid` on anything else — rendered as a 422 by
+  `Ccn::AdminErrors`. The loose `boolean` is unchanged and still correct for field flags.
+- **Area 6 (the two unrendered UI partials)** — half closed. `spec/requests/ccn_template_reminder_preferences_spec.rb`
+  now renders the template preferences page and asserts the reminder subject/body fields bind correctly; it was
+  written because the partial had a real bug (`compact_blank` collapsed the `[subject, body]` pair, so a
+  body-only override — which `PUT /api/templates/{id}` and `set_template_preferences` can both save — rendered
+  the body text inside the subject field and saved it back as the subject). **`notifications_settings/_reminder_banner.html.erb`
+  still has no spec** and remains the open half of this gap.
+
+Two follow-ups this review surfaced, neither fixed here:
+
+- The same `compact_blank` idiom sits in five upstream partials in `templates_preferences/`
+  (`_submitter_invitation_email_form`, `_submitter_completed_email_form`, `_submitter_view_invitation_email_form`,
+  `_submitter_documents_copy_email_form`, and the per-submitter block of the first). Left untouched under
+  principle I; the CCN partial now deliberately diverges from its neighbours.
+- **`/ccn/reminders/due` and `/ccn/reminders/run` are not in `docs/openapi-ccn.json`** — it documents 29
+  operations and `ccn_openapi_contract_spec.rb` asserts that count exactly. Stage 4 shipped its endpoints
+  without an API description; the `dry_run` 422 belongs there once they're added.
+
 ## What NOT to flag
 
 - Missing MCP tool for reminders — deliberate (research D6: "running reminders from a model transcript is not

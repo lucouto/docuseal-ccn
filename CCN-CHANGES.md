@@ -28,8 +28,10 @@ git rebase --onto <new-tag> <old-tag> ccn        # resolve using the table below
 |---------------|------------------|-----|
 | `Gemfile`, `Gemfile.lock` | Stage 1 — formulas | adds `dentaku` (MIT): server-side counterpart of the client calculator (a JS port of Dentaku) |
 | `lib/submitters/submit_values.rb` | Stage 1 — formulas | replaces the two Pro stubs `calculate_formula_value` (returned 0) and `eval_text_formula_value` (returned '') |
-| `app/views/templates/edit.html.erb` | Stage 1 — builder | `data-with-conditions`, `data-with-formula`, `data-field-types` |
-| `app/javascript/application.js` | Stage 1 — builder | maps `data-field-types` → `fieldTypes` prop (prop existed, was never wired for the ERB element) |
+| `app/views/templates/edit.html.erb` | Stage 1 — builder | `data-with-conditions`, `data-with-formula` |
+| `app/javascript/template_builder/fields.vue` | Stage 1 — de-Pro | locked "phone" upsell tile (→ docuseal.com/pricing) removed |
+| `app/javascript/submission_form/formula_areas.vue` | Stage 1 — formulas | referenced values coerced to numbers (`numericFormulaValue`) with the same rule as the server |
+| `config/application.rb` | Stage 1 — i18n | `config.i18n.load_path += config/locales/ccn/**/*.yml` (after upstream's file, so keys can be overridden) |
 | `app/views/shared/_settings_nav.html.erb` | Stage 1 — de-Pro | Plans/Console entries multitenant-only; SSO/SMS behind `Ccn::SSO_ENABLED`/`SMS_ENABLED`; version badge → fork release |
 | `app/views/shared/_navbar_buttons.html.erb` | Stage 1 — de-Pro | "Upgrade" button on /settings removed |
 | `app/views/shared/_navbar.html.erb` | Stage 1 — de-Pro | user-menu "Console" entry (→ console.docuseal.com) multitenant-only |
@@ -46,7 +48,7 @@ git rebase --onto <new-tag> <old-tag> ccn        # resolve using the table below
 |------|---------|
 | `.github/workflows/ccn-image.yml` | GHCR image build on `*-ccn.*` tags (linux/amd64) |
 | `CCN-CHANGES.md` | this register |
-| `config/initializers/zz_ccn.rb` | `Ccn::SOURCE_URL`, `BUILDER_FIELD_TYPES`, `SSO_ENABLED`, `SMS_ENABLED`; extra i18n load path |
+| `config/initializers/zz_ccn.rb` | `Ccn::SOURCE_URL`, `SSO_ENABLED`, `SMS_ENABLED`, `EMBEDDING_ENABLED` |
 | `config/locales/ccn/ccn.yml` | fork strings (en, fr) |
 | `app/views/shared/_ccn_not_yet.html.erb` | neutral "not available on this instance yet" notice |
 | `spec/requests/ccn_stage1_spec.rb` | Stage 1 gate: switches on, no upsell strings on reachable pages, attribution + source link, formulas/conditions on completion |

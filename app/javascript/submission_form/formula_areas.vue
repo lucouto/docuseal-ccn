@@ -89,9 +89,15 @@ export default {
         }
       })
     },
+    numericFormulaValue (value) {
+      if (typeof value === 'number') return Number.isFinite(value) ? value : 0.0
+      if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim())) return parseFloat(value)
+
+      return 0.0
+    },
     calculateFormula (field) {
       const transformedFormula = this.normalizeFormula(field.preferences.formula).replace(/{{(.*?)}}/g, (match, uuid) => {
-        return this.readonlyValues[uuid] || this.values[uuid] || 0.0
+        return this.numericFormulaValue(this.readonlyValues[uuid] ?? this.values[uuid])
       })
 
       return this.math.evaluate(transformedFormula.toLowerCase())

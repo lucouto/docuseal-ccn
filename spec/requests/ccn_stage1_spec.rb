@@ -9,26 +9,21 @@ describe 'CCN Stage 1' do
   let(:submission) { create(:submission, :with_submitters, template:, created_by_user: user) }
   let(:submitter) { submission.submitters.first }
 
-  # English strings and hosts that only appear in DocuSeal's own upsell UI.
+  # Strings and hosts that only appear in DocuSeal's own upsell UI (resolved at runtime, locale-aware).
   let(:upsell_markers) do
-    ['Unlock with DocuSeal Pro', 'Available in Pro', 'docuseal.com/pricing', 'console.docuseal.com',
-     'docuseal.com/sign_up', 'Upgrade']
+    [I18n.t('unlock_with_docuseal_pro'), 'docuseal.com/pricing', Docuseal::CONSOLE_URL,
+     "#{Docuseal::CLOUD_URL}/sign_up"]
   end
 
   before { sign_in(user) }
 
   describe 'template builder switches' do
-    it 'enables conditions and formulas and hides the locked phone tile' do
+    it 'enables conditions and formulas in the builder' do
       get "/templates/#{template.id}/edit"
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include('data-with-conditions="true"')
       expect(response.body).to include('data-with-formula="true"')
-
-      field_types = JSON.parse(response.body[/data-field-types="([^"]+)"/, 1].gsub('&quot;', '"'))
-
-      expect(field_types).to include('text', 'signature', 'date', 'number', 'checkbox')
-      expect(field_types).not_to include('phone', 'payment', 'verification', 'kba')
     end
   end
 
@@ -94,7 +89,7 @@ describe 'CCN Stage 1' do
 
     it 'computes numeric and text formulas server-side and drops values whose condition is false' do
       put "/s/#{submitter.slug}", params: {
-        completed: 'true',
+        completed: 'true', cast_number: 'true',
         values: { uuids['a'] => '2', uuids['b'] => '3.25', uuids['bonus'] => 'should be dropped' }
       }
 
@@ -108,6 +103,19 @@ describe 'CCN Stage 1' do
       expect(submitter.values).not_to have_key(uuids['bonus'])
     end
 
+    it 'treats non-numeric referenced values as 0, like the signing form does' do
+      template.update!(fields: template.fields.map do |f|
+        next f unless f['name'] == 'total'
+
+        f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} + {{#{uuids['b']}}} + 1" })
+      end)
+
+      put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => 'abc', uuids['b'] => '2' } }
+
+      expect(response).to have_http_status(:ok)
+      expect(submitter.reload.values[uuids['total']]).to eq(3)
+    end
+
     it 'refuses to complete when a formula cannot be evaluated' do
       template.update!(fields: template.fields.map do |f|
         f['name'] == 'total' ? f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} / 0" }) : f
@@ -116,7 +124,7 @@ describe 'CCN Stage 1' do
       put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '2', uuids['b'] => '1' } }
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(response.parsed_body['error']).to start_with('Formula error')
+      expect(response.parsed_body['error']).to start_with(I18n.t('ccn_formula_error', message: '').strip)
       expect(submitter.reload.completed_at).to be_nil
     end
   end

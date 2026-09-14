@@ -608,7 +608,7 @@ DEPENDENCIES
   csv-safe
   cuprite
   debug
-  dentaku
+  dentaku (~> 4.0)
   devise
   devise-two-factor
   dotenv

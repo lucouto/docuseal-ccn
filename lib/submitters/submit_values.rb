@@ -258,32 +258,46 @@ module Submitters
 
     # CCN fork: upstream ships this as a stub returning 0 (the Pro engine overrides it). The signing form
     # evaluates the same grammar client-side with a JavaScript port of Dentaku, so Dentaku is the
-    # server-side counterpart. Errors raise ValidationError (HTTP 422 to the signer) rather than storing
-    # a wrong number in a document that is about to be signed.
-    def calculate_formula_value(formula, values)
-      expression = formula.gsub(/{{(.*?)}}/) do
-        value = values[Regexp.last_match(1)]
-        value = value.first if value.is_a?(Array)
+    # server-side counterpart. Field values are bound as numeric variables, never spliced into the
+    # expression text, and every {{uuid}} that is blank, non-numeric, an array or a boolean counts as 0 —
+    # the same rule as numericFormulaValue in submission_form/formula_areas.vue. Errors raise
+    # ValidationError (HTTP 422 to the signer) rather than storing a wrong number in a document that is
+    # about to be signed.
+    FORMULA_NUMBER_REGEXP = /\A-?\d+(\.\d+)?\z/
+    FORMULA_RESULT_SCALE = 10
 
-        value.to_s.strip.presence || '0'
+    def calculate_formula_value(formula, values)
+      variables = {}
+
+      expression = formula.gsub(/{{(.*?)}}/) do
+        uuid = Regexp.last_match(1)
+        name = "f_#{uuid.delete('-')}"
+        variables[name] = numeric_formula_value(values[uuid])
+
+        name
       end
 
-      normalize_formula_result(Dentaku::Calculator.new.evaluate!(expression.downcase))
-    rescue Dentaku::Error, ZeroDivisionError, FloatDomainError => e
-      raise ValidationError, "Formula error: #{e.message}"
+      normalize_formula_result(Dentaku::Calculator.new.evaluate!(expression, variables))
+    rescue Dentaku::Error => e
+      raise ValidationError, I18n.t('ccn_formula_error', message: e.message)
+    end
+
+    def numeric_formula_value(value)
+      case value
+      when Numeric then value
+      when String then value.strip.match?(FORMULA_NUMBER_REGEXP) ? BigDecimal(value.strip) : 0
+      else 0
+      end
     end
 
     def normalize_formula_result(result)
-      case result
-      when BigDecimal
-        result.frac.zero? ? result.to_i : result.to_f
-      when Float
-        raise ValidationError, 'Formula result is not a number' unless result.finite?
+      return result unless result.is_a?(Numeric)
+      return result if result.is_a?(Integer)
+      raise ValidationError, I18n.t('ccn_formula_error', message: 'result is not a number') unless result.finite?
 
-        (result % 1).zero? ? result.to_i : result
-      else
-        result
-      end
+      rounded = BigDecimal(result.to_s).round(FORMULA_RESULT_SCALE)
+
+      rounded.frac.zero? ? rounded.to_i : rounded.to_f
     end
 
     # CCN fork: upstream stub returned ''. Mirrors evalTextFormula in submission_form/formula_areas.vue:

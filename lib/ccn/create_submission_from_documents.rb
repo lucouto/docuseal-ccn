@@ -30,6 +30,11 @@ module Ccn
       template = Ccn::CreateTemplateFromDocuments.call(user:, params:, files:, transient: true,
                                                        documents: format == :html ? [] : documents)
 
+      finish_transient(template, params)
+    end
+
+    # Once the transient template exists, any further refusal must take it (and its blobs) away again.
+    def finish_transient(template, params)
       if Ccn::DocumentParams.boolean(params[:merge_documents])
         Ccn::UpdateTemplateDocuments.merge(template)
         template.save!
@@ -40,6 +45,9 @@ module Ccn
       end
 
       template
+    rescue StandardError
+      discard(template)
+      raise
     end
 
     # Documents with a `position` come first, in position order; the others follow in input order.

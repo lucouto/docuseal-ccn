@@ -8,6 +8,21 @@ module Ccn
   module MergeTemplates
     module_function
 
+    # The templates named by `template_ids`, in that order, all readable by the caller and active; used by the
+    # REST operation and the MCP tool alike.
+    def find_templates(ability, template_ids)
+      ids = Array.wrap(template_ids).filter_map { |id| Integer(id.to_s, 10, exception: false) }
+
+      raise Ccn::DocumentParams::Invalid, 'template_ids[] is required' if ids.empty?
+
+      templates = Template.accessible_by(ability).active.where(id: ids).index_by(&:id)
+      missing = ids - templates.keys
+
+      raise Ccn::DocumentParams::Invalid, I18n.t('ccn_template_not_found', id: missing.join(', ')) if missing.any?
+
+      ids.map { |id| templates[id] }
+    end
+
     def call(user:, templates:, params:)
       roles = Array.wrap(params[:roles]).map { |role| role.to_s.squish }.compact_blank
       template = build_template(user, templates, params, roles)

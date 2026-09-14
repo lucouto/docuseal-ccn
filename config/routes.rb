@@ -70,13 +70,11 @@ Rails.application.routes.draw do
                                   as: 'ccn_account_configs', param: :key
       resources :template_folders, only: %i[index create update destroy], controller: 'ccn_template_folders',
                                    as: 'ccn_template_folders'
-      resources :templates, only: [], controller: 'ccn_templates', as: 'ccn_templates' do
-        resources :versions, only: %i[index create show], controller: 'ccn_template_versions', as: 'versions' do
+      scope 'templates/:template_id', as: 'ccn_template' do
+        resources :versions, only: %i[index create show], controller: 'ccn_template_versions' do
           post :restore, on: :member
         end
-        member do
-          post :detect_fields, to: 'ccn_template_detect_fields#create'
-        end
+        post 'detect_fields', to: 'ccn_template_detect_fields#create'
       end
     end
     resources :tools, only: %i[] do

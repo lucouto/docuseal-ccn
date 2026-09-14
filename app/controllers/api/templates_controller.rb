@@ -55,8 +55,6 @@ module Api
         @template.archived_at = archived == true ? Time.current : nil
       end
 
-      ccn_apply_preferences! # CCN fork
-
       @template.update!(template_params)
 
       SearchEntries.enqueue_reindex(@template) if @template.saved_change_to_name?

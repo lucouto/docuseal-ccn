@@ -7,7 +7,7 @@ module Api
     include Ccn::AdminErrors
 
     def create
-      template = Template.accessible_by(current_ability).find(params[:id])
+      template = Template.accessible_by(current_ability).find(params[:template_id])
 
       authorize!(:update, template)
 

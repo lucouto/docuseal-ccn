@@ -36,7 +36,7 @@ module Api
       submissions = create_and_detach(template)
 
       Ccn::CreateSubmissionFromDocuments.discard(template) # never raises: the submission is complete
-      after_create(submissions)
+      Ccn::CreateSubmissionFromDocuments.after_create(submissions)
 
       render json: build_documents_json(submissions)
     end
@@ -57,30 +57,6 @@ module Api
     rescue StandardError
       Ccn::CreateSubmissionFromDocuments.discard(template) # cascades to a submission still attached to it
       raise
-    end
-
-    # Same sequence as upstream `create` once the rows exist: webhooks, invitations, completion handling.
-    def after_create(submissions)
-      WebhookUrls.enqueue_events(submissions, 'submission.created')
-
-      Submissions.send_signature_requests(submissions)
-
-      submissions.each do |submission|
-        if submission.submitters.all? { |s| s.viewer? || s.completed_at? } &&
-           Submissions.maybe_update_completed_at(submission)
-          last_submitter = submission.submitters.reject(&:viewer?).max_by(&:completed_at)
-        end
-
-        submission.submitters.each do |submitter|
-          next unless submitter.completed_at?
-
-          ProcessSubmitterCompletionJob.perform_async('submitter_id' => submitter.id,
-                                                      'is_last' => submitter == last_submitter,
-                                                      'send_invitation_email' => false)
-        end
-      end
-
-      SearchEntries.enqueue_reindex(submissions)
     end
 
     # The published response: one submission object (fields included) plus its document schema.

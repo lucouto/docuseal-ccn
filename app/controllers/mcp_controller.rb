@@ -6,7 +6,16 @@ class McpController < ActionController::Metal
     'load_template' => Mcp::LoadTemplateController,
     'create_template' => Mcp::CreateTemplateController,
     'send_documents' => Mcp::SendDocumentsController,
-    'search_documents' => Mcp::SearchDocumentsController
+    'search_documents' => Mcp::SearchDocumentsController,
+    # CCN fork (specs/002-everything-by-api, FR-009): the fork's API as tools, same services as REST.
+    'create_template_from_documents' => Mcp::CcnCreateTemplateFromDocumentsController,
+    'update_template_documents' => Mcp::CcnUpdateTemplateDocumentsController,
+    'merge_templates' => Mcp::CcnMergeTemplatesController,
+    'create_submission_from_documents' => Mcp::CcnCreateSubmissionFromDocumentsController,
+    'manage_users' => Mcp::CcnManageUsersController,
+    'manage_webhooks' => Mcp::CcnManageWebhooksController,
+    'account_config' => Mcp::CcnAccountConfigController,
+    'set_template_preferences' => Mcp::CcnSetTemplatePreferencesController
   }.freeze
 
   TOOLS = TOOL_CONTROLLERS.map { |_, controller| controller::SCHEMA }.freeze

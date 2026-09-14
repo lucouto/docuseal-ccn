@@ -22,12 +22,14 @@ module Ccn
     }.freeze
     KEYS = (SCALAR_KEYS + NESTED_KEYS.keys).freeze
 
-    # The two lines the upstream Api::TemplatesController gains (registered in CCN-CHANGES.md): `include` and
-    # a call to `ccn_apply_preferences!` before `@template.update!`.
+    # The one line the upstream Api::TemplatesController gains (registered in CCN-CHANGES.md): `include`, after
+    # its `load_and_authorize_resource`, so the callback below finds @template loaded and runs before `update`.
     module ApiHook
       extend ActiveSupport::Concern
 
       included do
+        before_action :ccn_apply_preferences!, only: :update
+
         rescue_from Ccn::AdminInvalid do |e|
           render json: { error: e.message }, status: :unprocessable_content
         end

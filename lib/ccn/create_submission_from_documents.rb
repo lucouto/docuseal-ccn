@@ -91,6 +91,31 @@ module Ccn
       submission.save!
     end
 
+    # Step 4, shared with the MCP tool: the same sequence as upstream's API `create` once the rows exist —
+    # webhooks, invitations, completion handling, search index.
+    def after_create(submissions)
+      WebhookUrls.enqueue_events(submissions, 'submission.created')
+
+      Submissions.send_signature_requests(submissions)
+
+      submissions.each do |submission|
+        if submission.submitters.all? { |s| s.viewer? || s.completed_at? } &&
+           Submissions.maybe_update_completed_at(submission)
+          last_submitter = submission.submitters.reject(&:viewer?).max_by(&:completed_at)
+        end
+
+        submission.submitters.each do |submitter|
+          next unless submitter.completed_at?
+
+          ProcessSubmitterCompletionJob.perform_async('submitter_id' => submitter.id,
+                                                      'is_last' => submitter == last_submitter,
+                                                      'send_invitation_email' => false)
+        end
+      end
+
+      SearchEntries.enqueue_reindex(submissions)
+    end
+
     # Destroyed through a fresh instance: the one used for creation still holds the submission in its loaded
     # `submissions` association, which `dependent: :destroy` would take down with it. Never raises: the callers
     # are either cleaning up after an error that must reach the client or finishing a request that already

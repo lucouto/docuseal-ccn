@@ -6,7 +6,7 @@ describe Ccn::TemplatePreferences do
   let(:template) { create(:template, account:, author: create(:user, account:)) }
 
   it 'mirrors the keys the UI permits' do
-    expect(described_class::KEYS.size).to eq(32)
+    expect(described_class::KEYS.size).to eq(31) # 28 scalar keys + 3 nested, as TemplatesPreferencesController
     expect(described_class::KEYS).to include('request_email_subject', 'default_expire_at', 'completed_message',
                                              'submitters', 'link_form_fields')
   end
@@ -35,7 +35,8 @@ describe Ccn::TemplatePreferences do
   it 'interprets default_expire_at in the account timezone and stores UTC' do
     described_class.apply!(template, { 'default_expire_at' => '2027-01-15 10:00' }, account)
 
-    expect(template.preferences['default_expire_at']).to eq(Time.utc(2027, 1, 15, 9, 0))
+    # the serialized attribute round-trips through JSON on assignment
+    expect(template.preferences['default_expire_at']).to eq('2027-01-15T09:00:00.000Z')
 
     expect { described_class.apply!(template, { 'default_expire_at' => 'someday' }, account) }
       .to raise_error(Ccn::AdminInvalid, /datetime/)

@@ -105,16 +105,16 @@ module Ccn
       end
     end
 
-    def iou(a, b)
-      x1 = [a['x'].to_f, b['x'].to_f].max
-      y1 = [a['y'].to_f, b['y'].to_f].max
-      x2 = [a['x'].to_f + a['w'].to_f, b['x'].to_f + b['w'].to_f].min
-      y2 = [a['y'].to_f + a['h'].to_f, b['y'].to_f + b['h'].to_f].min
-
-      intersection = [x2 - x1, 0].max * [y2 - y1, 0].max
-      union = (a['w'].to_f * a['h'].to_f) + (b['w'].to_f * b['h'].to_f) - intersection
+    def iou(area, other)
+      intersection = overlap(area['x'], area['w'], other['x'], other['w']) *
+                     overlap(area['y'], area['h'], other['y'], other['h'])
+      union = (area['w'].to_f * area['h'].to_f) + (other['w'].to_f * other['h'].to_f) - intersection
 
       union.positive? ? intersection / union : 0
+    end
+
+    def overlap(start_a, size_a, start_b, size_b)
+      [[start_a.to_f + size_a.to_f, start_b.to_f + size_b.to_f].min - [start_a.to_f, start_b.to_f].max, 0].max
     end
   end
 end

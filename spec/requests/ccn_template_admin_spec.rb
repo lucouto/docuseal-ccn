@@ -162,7 +162,7 @@ describe 'CCN template administration API' do
       allow(Templates::DetectFields).to receive(:call) do |_io, attachment:, page_number:, **, &block|
         index = page_number || 0
         fields = [{ uuid: SecureRandom.uuid, type: 'text', required: false, preferences: {},
-                    areas: [{ x: 0.1, y: 0.1, w: 0.2, h: 0.05, page: index, attachment_uuid: attachment.uuid }] }]
+                    areas: [{ x: 0.61, y: 0.93, w: 0.1, h: 0.03, page: index, attachment_uuid: attachment.uuid }] }]
 
         block&.call([attachment.uuid, index, fields])
 

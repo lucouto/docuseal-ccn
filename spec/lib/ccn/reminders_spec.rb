@@ -136,7 +136,7 @@ describe Ccn::Reminders do
       submitter_sent(sent_at: due_at, preferences: { 'send_email' => false })
       bounced = submitter_sent(sent_at: due_at)
       create(:email_event, emailable: bounced, account:, email: bounced.email, event_type: 'bounce',
-                          event_datetime: 1.hour.ago)
+                           event_datetime: 1.hour.ago)
 
       expect(described_class.due(account, now:)).to be_empty
     end

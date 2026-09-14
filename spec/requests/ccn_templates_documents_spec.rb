@@ -150,7 +150,7 @@ describe 'CCN templates API (documents in)' do
 
       api :post, '/api/templates/pdf', documents: [{ name: 'x', file: Base64.strict_encode64('plain text') }]
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json['error']).to eq(I18n.t('ccn_unsupported_file_type', type: 'application/octet-stream'))
+      expect(json['error']).to eq(I18n.t('ccn_unrecognized_file'))
 
       stub_request(:get, 'https://files.example.com/slow.pdf').to_timeout
       api :post, '/api/templates/pdf', documents: [{ file: 'https://files.example.com/slow.pdf' }]

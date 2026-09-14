@@ -8,10 +8,16 @@ module Ccn
   module CreateSubmissionFromDocuments
     module_function
 
-    # Step 1. `documents[].position` orders the documents; `merge_documents` folds them into one PDF.
+    # Step 1. `documents[].position` orders the documents; `merge_documents` folds them into one PDF. The
+    # published operations create ONE submission (`submitters[]`); upstream's `emails` / `submissions[]`
+    # forms would create several, which the single document set cannot serve.
     def transient_template(user:, params:, format:)
       raise Ccn::NotSupportedYet, 'template_ids' if params[:template_ids].present?
       raise Ccn::NotSupportedYet, 'variables' if params[:variables].present?
+
+      if params[:submitters].blank?
+        raise Ccn::NotSupportedYet, 'emails / submissions[] (one submission per request: pass submitters[])'
+      end
 
       documents = ordered_documents(params)
       files =
@@ -36,12 +42,15 @@ module Ccn
       template
     end
 
+    # Documents with a `position` come first, in position order; the others follow in input order.
     def ordered_documents(params)
       documents = Array.wrap(params[:documents]).map { |document| Ccn::DocumentParams.indifferent(document) }
 
-      documents.each_with_index
-               .sort_by { |document, index| [Integer(document[:position].to_s, 10, exception: false) || index, index] }
-               .map(&:first)
+      documents.each_with_index.sort_by do |document, index|
+        position = Integer(document[:position].to_s, 10, exception: false)
+
+        position ? [0, position, index] : [1, index, index]
+      end.map(&:first)
     end
 
     # Step 3. The submission keeps its own snapshot (schema, fields, roles) and the documents themselves; the

@@ -24,18 +24,10 @@ module Ccn
       external_id = params[:external_id].presence || params[:application_key].presence unless transient
       template = find_existing(user, external_id)
       event = template ? 'template.updated' : 'template.created'
-      template ||= user.account.templates.new(author: user, source: :api)
+      template ||= user.account.templates.new(author: user, source: :api, external_id:)
       template.preferences = template.preferences.merge('ccn_transient' => true) if transient
 
-      Template.transaction do
-        assign_attributes(template, user, params, files, external_id)
-        template.save!
-
-        attachments = attach(template, files, params, replace: event == 'template.updated')
-        merge_explicit_fields(template, attachments, documents)
-
-        template.save!
-      end
+      build(template, user, params, files, documents, replace: event == 'template.updated')
 
       unless transient
         WebhookUrls.enqueue_events(template, event)
@@ -43,6 +35,25 @@ module Ccn
       end
 
       template.reload
+    end
+
+    # No transaction spans the conversions and uploads (upstream holds none there either): a failure while
+    # creating destroys the new template, which purges its blobs; an upsert that fails leaves the existing
+    # template's stored schema untouched (its in-memory changes are never saved).
+    def build(template, user, params, files, documents, replace:)
+      created = template.new_record?
+
+      assign_attributes(template, user, params, files, template.external_id)
+      template.save!
+
+      attachments = attach(template, files, params, replace:)
+      merge_explicit_fields(template, attachments, documents)
+
+      template.save!
+    rescue StandardError
+      template.destroy if created && template.persisted?
+
+      raise
     end
 
     def find_existing(user, external_id)

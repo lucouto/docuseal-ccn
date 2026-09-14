@@ -38,6 +38,7 @@ describe 'CCN submissions API (documents in)' do
       expect(json).to include('name' => 'Lease 12', 'source' => 'api', 'status' => 'pending', 'documents' => [])
       expect(json['submitters'].pluck('role')).to eq(['First Party', 'Signer2'])
       expect(json['submitters'].pluck('email')).to eq(%w[first@example.com second@example.com])
+      expect(json['submitters'].first['embed_src']).to include("/s/#{json['submitters'].first['slug']}")
       expect(json['schema'].pluck('name')).to eq(['lease'])
       expect(json['fields'].pluck('name')).to include('Text Field', 'FIeld2', 'Signature')
 
@@ -79,6 +80,32 @@ describe 'CCN submissions API (documents in)' do
       expect(response).to have_http_status(:ok)
       expect(json['status']).to eq('completed')
       expect(json['documents']).not_to be_empty
+    end
+
+    it 'puts positioned documents first and keeps the input order for the others' do
+      documents = [{ name: 'b', file: sample_base64 }, { name: 'c', file: sample_base64 },
+                   { name: 'a', file: pdf_base64, position: 0 }]
+
+      api :post, '/api/submissions/pdf', documents:, send_email: false, submitters: tag_submitters
+
+      expect(response).to have_http_status(:ok)
+      expect(json['schema'].pluck('name')).to eq(%w[a b c])
+    end
+
+    it 'refuses the multi-submission forms (emails, submissions[]) with an explicit 422, leaving nothing behind' do
+      documents = [{ name: 'lease', file: pdf_base64 }]
+
+      api :post, '/api/submissions/pdf', documents:, emails: 'a@example.com, b@example.com'
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to match(/one submission per request/)
+
+      api :post, '/api/submissions/pdf', documents:,
+                                         submissions: [{ submitters: tag_submitters }, { submitters: tag_submitters }]
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to match(/one submission per request/)
+
+      expect(Template.count).to eq(0)
+      expect(Submission.count).to eq(0)
     end
 
     it 'orders the documents by position and merges them into one PDF when merge_documents is true' do
@@ -150,15 +177,16 @@ describe 'CCN submissions API (documents in)' do
   end
 
   describe 'POST /api/submissions/html' do
-    it 'renders the html through the sidecar and creates the submission' do
+    it 'renders the html through the sidecar with the per-document size and header, and creates the submission' do
       stub_const('Ccn::GOTENBERG_URL', gotenberg_url)
-      stub = stub_request(:post, "#{gotenberg_url}/forms/chromium/convert/html")
-             .with { |req| req.body.include?('{{Name;type=text;role=First Party') }
-             .to_return(status: 200, body: pdf_bytes, headers: { 'Content-Type' => 'application/pdf' })
+      stub = stub_request(:post, "#{gotenberg_url}/forms/chromium/convert/html").with do |req|
+        req.body.include?('{{Name;type=text;role=First Party') && req.body.include?('8.27') &&
+          req.body.include?('filename="header.html"')
+      end.to_return(status: 200, body: pdf_bytes, headers: { 'Content-Type' => 'application/pdf' })
       html = '<p><text-field name="Name" role="First Party"></text-field></p>'
 
-      api :post, '/api/submissions/html', send_email: false, documents: [{ name: 'web', html: }],
-                                          submitters: tag_submitters
+      api :post, '/api/submissions/html', send_email: false, submitters: tag_submitters,
+                                          documents: [{ name: 'web', html:, size: 'A4', html_header: '<p>H</p>' }]
 
       expect(response).to have_http_status(:ok)
       expect(stub).to have_been_requested

@@ -13,12 +13,12 @@ module Ccn
     def call(template:, params:)
       documents = Array.wrap(params[:documents]).map { |document| Ccn::DocumentParams.indifferent(document) }
 
-      Template.transaction do
-        documents.each { |document| apply(template, document, params) }
-        merge(template) if Ccn::DocumentParams.boolean(params[:merge])
+      # No transaction across conversions/uploads: the schema and fields are written once at the end, so a
+      # failure half-way leaves the stored template unchanged (plus unreferenced attachments, as the builder).
+      documents.each { |document| apply(template, document, params) }
+      merge(template) if Ccn::DocumentParams.boolean(params[:merge])
 
-        template.save!
-      end
+      template.save!
 
       WebhookUrls.enqueue_events(template, 'template.updated')
 

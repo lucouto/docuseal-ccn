@@ -50,6 +50,7 @@ module Ccn
       type = error.message.delete_suffix('/false').delete_suffix('/true')
 
       return I18n.t('ccn_invalid_document', message: 'zip archive too large') if type == 'zip_too_large'
+      return I18n.t('ccn_unrecognized_file') if type == 'application/octet-stream'
       return I18n.t('ccn_conversion_unavailable') if Templates::CreateAttachments::DOCUMENT_CONTENT_TYPES.include?(type)
 
       I18n.t('ccn_unsupported_file_type', type:)

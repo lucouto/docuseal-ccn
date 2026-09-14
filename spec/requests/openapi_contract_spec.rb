@@ -15,8 +15,10 @@ describe 'OpenAPI contract' do
   # that fixes or worsens a discrepancy is noticed; re-check on every upstream rebase.
   #   - GET /submissions/{id}: the spec requires "metadata", Submissions::SerializeForApi never emits it.
   #   - submission "name" is typed string but is null for unnamed submissions (fixtures below set a name).
-  #   - POST /submissions/{pdf,docx,html}: "expire_at" is typed string (not nullable) but a submission without
-  #     an expiry has null there, in Submissions::SerializeForApi as in every other submission response.
+  #   - POST /submissions/{pdf,docx,html}: the spec types "expire_at" as a non-null string, but a submission
+  #     without an expiry has null there (Submissions::SerializeForApi, as in every other submission response);
+  #     these operations never shipped in the OSS edition, so this is a spec-vs-serializer mismatch the fork
+  #     accepts rather than something observable upstream.
   let(:known_upstream_deviations) do
     expire_at = ['$.expire_at: expected string, got null nil']
 
@@ -229,6 +231,21 @@ describe 'OpenAPI contract' do
       post '/api/submissions/html', headers: headers, params: body.to_json
 
       expect_conforming_response('post', '/submissions/html')
+    end
+
+    # Documented request fields the fork does not implement yet (research D11): pinned here so the gap is
+    # visible next to the contract, and so the answer stays an explicit 422 rather than a silent ignore.
+    it 'answers 422 "not supported yet" for template_ids and variables' do
+      base = { send_email: false, documents: [{ name: 'tags', file: fieldtags_base64 }],
+               submitters: [{ role: 'First Party', email: 'contract.gap@example.com' }] }
+
+      post '/api/submissions/pdf', headers: headers, params: base.merge(template_ids: [template.id]).to_json
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_not_supported_yet', feature: 'template_ids'))
+
+      post '/api/submissions/pdf', headers: headers, params: base.merge(variables: { a: 1 }).to_json
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_not_supported_yet', feature: 'variables'))
     end
   end
 

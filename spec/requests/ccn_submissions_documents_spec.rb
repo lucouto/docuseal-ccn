@@ -51,6 +51,10 @@ describe 'CCN submissions API (documents in)' do
     end
 
     it 'can be opened and signed through the form and yields the signed documents', sidekiq: :inline do
+      # Result generation signs the PDF: the instance certificate is created at setup, here by hand.
+      create(:encrypted_config, key: EncryptedConfig::ESIGN_CERTS_KEY,
+                                value: GenerateCertificate.call.transform_values(&:to_pem))
+
       api :post, '/api/submissions/pdf', send_email: false,
                                          documents: [{ name: 'contract', file: sample_base64, fields: [signer_field] }],
                                          submitters: [{ role: 'Signer', email: 'signer@example.com', name: 'Alice' }]
@@ -105,7 +109,7 @@ describe 'CCN submissions API (documents in)' do
         .to change(SendSubmitterInvitationEmailJob.jobs, :size).by(1)
     end
 
-    it 'answers 422 for template_ids, variables, an unknown role and fieldless documents, leaving nothing behind' do
+    it 'answers 422 for template_ids, variables, a bad submitter and fieldless documents, leaving nothing behind' do
       documents = [{ name: 'lease', file: pdf_base64 }]
 
       api :post, '/api/submissions/pdf', template_ids: [1], documents:, submitters: tag_submitters
@@ -116,9 +120,9 @@ describe 'CCN submissions API (documents in)' do
       expect(response).to have_http_status(:unprocessable_content)
       expect(json['error']).to eq(I18n.t('ccn_not_supported_yet', feature: 'variables'))
 
-      api :post, '/api/submissions/pdf', documents:, submitters: [{ role: 'Nobody', email: 'x@example.com' }]
+      api :post, '/api/submissions/pdf', documents:, submitters: [{ role: 'First Party' }] # no email/phone/name
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json['error']).to be_present
+      expect(json['error']).to be_present # upstream Params::SubmissionCreateValidator, unchanged
 
       api :post, '/api/submissions/pdf', documents: [{ name: 'plain', file: sample_base64 }], submitters: tag_submitters
       expect(response).to have_http_status(:unprocessable_content)

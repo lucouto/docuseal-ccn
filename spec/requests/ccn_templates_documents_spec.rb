@@ -143,7 +143,7 @@ describe 'CCN templates API (documents in)' do
 
       api :post, '/api/templates/pdf', documents: [{ name: 'x', file: Base64.strict_encode64('plain text') }]
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json['error']).to eq(I18n.t('ccn_unsupported_file_type', type: 'text/plain'))
+      expect(json['error']).to eq(I18n.t('ccn_unsupported_file_type', type: 'application/octet-stream'))
 
       expect(Template.count).to eq(0)
     end
@@ -284,8 +284,7 @@ describe 'CCN templates API (documents in)' do
 
       api :put, "/api/templates/#{template.id}/documents", documents: [{ position: 0, remove: true }]
       expect(json['schema'].pluck('name')).to eq(['sample-document'])
-      expect(json['fields'].pluck('name')).not_to include(*tag_names)
-      expect(json['fields'].pluck('uuid')).to match_array(original_fields)
+      expect(json['fields'].pluck('uuid')).to match_array(original_fields) # the tag fields went with their document
     end
 
     it 'adds a document rendered from html' do

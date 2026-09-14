@@ -15,9 +15,16 @@ describe 'OpenAPI contract' do
   # that fixes or worsens a discrepancy is noticed; re-check on every upstream rebase.
   #   - GET /submissions/{id}: the spec requires "metadata", Submissions::SerializeForApi never emits it.
   #   - submission "name" is typed string but is null for unnamed submissions (fixtures below set a name).
+  #   - POST /submissions/{pdf,docx,html}: "expire_at" is typed string (not nullable) but a submission without
+  #     an expiry has null there, in Submissions::SerializeForApi as in every other submission response.
   let(:known_upstream_deviations) do
+    expire_at = ['$.expire_at: expected string, got null nil']
+
     {
-      %w[get /submissions/{id}] => ['$: missing required key "metadata"']
+      %w[get /submissions/{id}] => ['$: missing required key "metadata"'],
+      %w[post /submissions/pdf] => expire_at,
+      %w[post /submissions/docx] => expire_at,
+      %w[post /submissions/html] => expire_at
     }
   end
 

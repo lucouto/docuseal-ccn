@@ -150,7 +150,7 @@ recurring work.
    (default 50) deliveries per run, oldest `sent_at` first.
 3. **Reminders — run safety**: a Redis lock (`nx`, TTL 14 min) serializes concurrent processes; the audit event
    is written immediately after delivery, so a crash can at worst repeat one send once, never burst.
-4. **Reminders — mailer**: `Ccn::SubmitterReminderMailer < SubmitterMailer` mirrors `invitation_email` exactly
+4. **Reminders — mailer**: `CcnSubmitterReminderMailer < SubmitterMailer` mirrors `invitation_email` exactly
    (subject/body resolution order: template preference → account config → default; reply-to, from-address,
    sign-link, `ValidateSending`), so behaviour a reader already knows from the invitation applies unchanged.
 5. **Reminders — observability**: `Ccn::Reminders.due`/`.run` behind `GET /api/ccn/reminders/due` and
@@ -184,7 +184,7 @@ recurring work.
 | Phase | Content | Verification |
 |-------|---------|---------------|
 | 1 Setup | `sidekiq-cron` in `Gemfile`/`Gemfile.lock`, `zz_ccn_reminders.rb` initializer, `Ccn::Reminders::DURATIONS` + due-rule spec, locale keys | CI green |
-| 2 Reminders mailer + job (US1) | `Ccn::SubmitterReminderMailer` + view, `Ccn::Reminders.due/.run`, `CcnSendSubmitterRemindersJob`, Redis lock | mailer/job/lib specs: due rule (SC-001 cases), skip rules (FR-002), idempotency, lock, `can_send_emails?` false → skipped not sent |
+| 2 Reminders mailer + job (US1) | `CcnSubmitterReminderMailer` + view, `Ccn::Reminders.due/.run`, `CcnSendSubmitterRemindersJob`, Redis lock | mailer/job/lib specs: due rule (SC-001 cases), skip rules (FR-002), idempotency, lock, `can_send_emails?` false → skipped not sent |
 | 3 Reminders API + UI (US1) | `Api::CcnRemindersController`, routes, `_reminder_banner` + per-template collapse filled in | request spec: `due`/`run` shapes, `dry_run`, admin-only; UI renders the form and saves through the existing settings controller |
 | — Review A | diff-only reviewer on phases 1–3 | findings fixed, CI green |
 | 4 Account logo (US2) | `Ccn::AccountLogo` concern, `CcnAccountLogosController` (UI), `Api::CcnAccountLogoController`, `shared/_ccn_brand_logo` + `_ccn_mailer_logo` partials, the four hook/layout edits | request spec: upload validation (type/size/magic bytes), signing-page + e-mail rendering with attribution assertion (FR-007), removal restores the mark |

@@ -150,6 +150,9 @@ GEM
       bigdecimal
       rexml
     crass (1.0.7)
+    cronex (0.15.0)
+      tzinfo
+      unicode (>= 0.4.4.5)
     csv (3.3.5)
     csv-safe (3.3.1)
       csv (~> 3.0)
@@ -192,6 +195,8 @@ GEM
       rubocop (>= 1)
       smart_properties
     erubi (1.13.1)
+    et-orbi (1.4.2)
+      tzinfo
     factory_bot (6.5.6)
       activesupport (>= 6.1.0)
     factory_bot_rails (6.5.1)
@@ -220,6 +225,9 @@ GEM
     ffi (1.17.4-x86_64-linux-musl)
     foreman (0.90.0)
       thor (~> 1.4)
+    fugit (1.14.0)
+      et-orbi (~> 1.4)
+      raabro (~> 1.4)
     geom2d (0.4.1)
     globalid (1.4.0)
       activesupport (>= 6.1)
@@ -376,6 +384,7 @@ GEM
     public_suffix (7.0.5)
     puma (8.0.2)
       nio4r (~> 2.0)
+    raabro (1.5.0)
     racc (1.8.1)
     rack (3.2.6)
     rack-proxy (0.7.7)
@@ -519,6 +528,11 @@ GEM
       logger (>= 1.7.0)
       rack (>= 3.2.0)
       redis-client (>= 0.29.0)
+    sidekiq-cron (2.4.0)
+      cronex (>= 0.13.0)
+      fugit (~> 1.8, >= 1.11.1)
+      globalid (>= 1.0.1)
+      sidekiq (>= 6.5.0)
     signet (0.21.0)
       addressable (~> 2.8)
       faraday (>= 0.17.5, < 3.a)
@@ -558,6 +572,7 @@ GEM
     tzinfo-data (1.2026.1)
       tzinfo (>= 1.0.0)
     uber (0.1.0)
+    unicode (0.4.4.5)
     unicode-display_width (3.2.0)
       unicode-emoji (~> 4.1)
     unicode-emoji (4.2.0)
@@ -646,6 +661,7 @@ DEPENDENCIES
   rubyXL
   shakapacker
   sidekiq
+  sidekiq-cron (= 2.4.0)
   simplecov
   sqlite3
   strip_attributes

@@ -51,6 +51,9 @@ en:
   ccn_no_submitters: 'The template has no signer role to attach the fields to'
   ccn_invalid_page: 'page must be a page number of the document, starting from 1'
   ccn_setting_too_long: '%{key} is too long (%{max} bytes maximum)'
+  ccn_last_admin_required: 'At least one administrator must remain on the account'
+  ccn_logo_invalid_type: 'The logo must be a PNG, JPEG or WebP image'
+  ccn_logo_too_large: 'The logo must be at most %{max} MB'
 fr:
   ccn_not_available_yet: Pas encore disponible sur cette instance
   ccn_not_available_yet_hint_html: Cette fonctionnalité DocuSeal Pro est en cours de réimplémentation dans le <a class="link" href="%{url}" target="_blank" rel="noopener">fork CCN</a>.
@@ -102,3 +105,6 @@ fr:
   ccn_no_submitters: 'Le modèle n''a aucun rôle de signataire auquel rattacher les champs'
   ccn_invalid_page: 'page doit être un numéro de page du document, à partir de 1'
   ccn_setting_too_long: '%{key} est trop long (%{max} octets maximum)'
+  ccn_last_admin_required: 'Il doit rester au moins un administrateur sur le compte'
+  ccn_logo_invalid_type: 'Le logo doit être une image PNG, JPEG ou WebP'
+  ccn_logo_too_large: 'Le logo doit peser au plus %{max} Mo'

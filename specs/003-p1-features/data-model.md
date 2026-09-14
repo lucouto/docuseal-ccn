@@ -44,7 +44,7 @@ Result row: `{ submitter_id, submission_id, email, stage, due_at, name }`. Oldes
 **Run** (`Ccn::Reminders.run(account:, now: Time.current, dry_run: false)`):
 
 ```json
-{ "sent": 1, "skipped": { "no_email_delivery_configured": 3, "email_bounced": 1 }, "locked": false, "disabled": false }
+{ "sent": 1, "skipped": { "no_email_delivery_configured": 3 }, "locked": false, "disabled": false }
 ```
 `dry_run: true` computes `due` and reports the same counters without sending or writing events. When
 `!Accounts.can_send_emails?(account)` every due signer is counted under `no_email_delivery_configured` and
@@ -55,7 +55,7 @@ Result row: `{ submitter_id, submission_id, email, stage, due_at, name }`. Oldes
 | `GET /api/ccn/reminders/due` | — | admins only (`authorize!(:manage, current_account)`); lists signers due now with their stage; no reason exposed for signers *not* due (privacy, FR requirement) |
 | `POST /api/ccn/reminders/run` | `dry_run` (default false) | admins only; runs `Ccn::Reminders.run`; acquires the Redis lock (`ccn:reminders:lock`, `nx`, `ex 840`) — a concurrent call returns `locked: true` immediately, sends nothing |
 
-Mailer (`Ccn::SubmitterReminderMailer#reminder_email(submitter)`): subject/body from, in order, the
+Mailer (`CcnSubmitterReminderMailer#reminder_email(submitter)`): subject/body from, in order, the
 template's `invitation_reminder_email_subject/body` preference, then the account's
 `submitter_invitation_reminder_email` config, then `AccountConfig::DEFAULT_VALUES` (= the invitation texts);
 `ReplaceEmailVariables`, `build_submitter_reply_to`, `maybe_set_custom_domain`, `from_address_for_submitter`,

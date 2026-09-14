@@ -40,6 +40,7 @@ gem 'ruby-vips'
 gem 'rubyXL', require: false
 gem 'shakapacker'
 gem 'sidekiq'
+gem 'sidekiq-cron', '2.4.0' # CCN Stage 4: the reminder scheduler (research D1, CCN-CHANGES.md)
 gem 'sqlite3', require: false
 gem 'strip_attributes'
 gem 'trilogy', require: false

@@ -76,6 +76,9 @@ Rails.application.routes.draw do
         end
         post 'detect_fields', to: 'ccn_template_detect_fields#create'
       end
+      # Stage 4, US1 (specs/003-p1-features)
+      get 'reminders/due', to: 'ccn_reminders#due'
+      post 'reminders/run', to: 'ccn_reminders#run'
     end
     resources :tools, only: %i[] do
       post :merge, on: :collection

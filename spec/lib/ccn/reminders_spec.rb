@@ -12,6 +12,10 @@ describe Ccn::Reminders do
   before do
     create(:user, account:) # Account#default_template_folder needs an author to assign templates to
     allow(Sidekiq).to receive(:redis).and_yield(fake_redis)
+    # Accounts.can_send_emails? is false by default in the test env (no EncryptedConfig SMTP row, no
+    # SMTP_ADDRESS, not multitenant/development) — the same as staging; opt in per test like the rest of
+    # the suite does (e.g. spec/system/profile_settings_spec.rb).
+    allow(Accounts).to receive(:can_send_emails?).and_return(true)
     ActionMailer::Base.deliveries.clear
   end
 
@@ -131,7 +135,8 @@ describe Ccn::Reminders do
       submitter_sent(sent_at: due_at, email: nil)
       submitter_sent(sent_at: due_at, preferences: { 'send_email' => false })
       bounced = submitter_sent(sent_at: due_at)
-      create(:email_event, email: bounced.email, event_type: 'bounce', event_datetime: 1.hour.ago)
+      create(:email_event, emailable: bounced, account:, email: bounced.email, event_type: 'bounce',
+                          event_datetime: 1.hour.ago)
 
       expect(described_class.due(account, now:)).to be_empty
     end

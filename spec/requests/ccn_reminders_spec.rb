@@ -17,6 +17,9 @@ describe 'CCN reminders API' do
 
   before do
     allow(Sidekiq).to receive(:redis).and_yield(FakeReminderRedis.new)
+    # Accounts.can_send_emails? is false by default in the test env (no EncryptedConfig SMTP row) — opt in
+    # per the rest of the suite's convention (e.g. spec/system/profile_settings_spec.rb).
+    allow(Accounts).to receive(:can_send_emails?).and_return(true)
   end
 
   it 'reports disabled when no reminders are configured' do

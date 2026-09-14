@@ -26,7 +26,17 @@ git rebase --onto <new-tag> <old-tag> ccn        # resolve using the table below
 
 | Upstream file | Feature / commit | Why |
 |---------------|------------------|-----|
-| — | — | none yet (Stage 0 adds only new files) |
+| `Gemfile`, `Gemfile.lock` | Stage 1 — formulas | adds `dentaku` (MIT): server-side counterpart of the client calculator (a JS port of Dentaku) |
+| `lib/submitters/submit_values.rb` | Stage 1 — formulas | replaces the two Pro stubs `calculate_formula_value` (returned 0) and `eval_text_formula_value` (returned '') |
+| `app/views/templates/edit.html.erb` | Stage 1 — builder | `data-with-conditions`, `data-with-formula`, `data-field-types` |
+| `app/javascript/application.js` | Stage 1 — builder | maps `data-field-types` → `fieldTypes` prop (prop existed, was never wired for the ERB element) |
+| `app/views/shared/_settings_nav.html.erb` | Stage 1 — de-Pro | Plans/Console entries multitenant-only; SSO/SMS behind `Ccn::SSO_ENABLED`/`SMS_ENABLED`; version badge → fork release |
+| `app/views/shared/_navbar_buttons.html.erb` | Stage 1 — de-Pro | "Upgrade" button on /settings removed |
+| `app/views/shared/_powered_by.html.erb` | Stage 1 — AGPL §13 | adds the source-code link next to the DocuSeal attribution (attribution kept, §7(b)) |
+| `app/views/users/_role_select.html.erb` | Stage 1 — de-Pro | upsell link removed (roles come with Stage 4) |
+| `app/views/sso_settings/_placeholder.html.erb`, `sms_settings/_placeholder.html.erb`, `templates_code_modal/_placeholder.html.erb` | Stage 1 — de-Pro | render `shared/ccn_not_yet` |
+| `app/views/submissions/_send_sms_button.html.erb`, `app/views/esign_settings/_default_signature_row.html.erb` | Stage 1 — de-Pro | emptied (SMS is P2; the AATL row is DocuSeal's own certificate) |
+| hook partials `personalization_settings/_logo_form`, `notifications_settings/_reminder_banner`, `submissions/_list_form` | Stage 1 — de-Pro | render `shared/ccn_not_yet` until Stage 2/4 fill them |
 
 ## New files owned by the fork
 
@@ -34,4 +44,8 @@ git rebase --onto <new-tag> <old-tag> ccn        # resolve using the table below
 |------|---------|
 | `.github/workflows/ccn-image.yml` | GHCR image build on `*-ccn.*` tags (linux/amd64) |
 | `CCN-CHANGES.md` | this register |
+| `config/initializers/zz_ccn.rb` | `Ccn::SOURCE_URL`, `BUILDER_FIELD_TYPES`, `SSO_ENABLED`, `SMS_ENABLED`; extra i18n load path |
+| `config/locales/ccn/ccn.yml` | fork strings (en, fr) |
+| `app/views/shared/_ccn_not_yet.html.erb` | neutral "not available on this instance yet" notice |
+| `spec/requests/ccn_stage1_spec.rb` | Stage 1 gate: switches on, no upsell strings on reachable pages, attribution + source link, formulas/conditions on completion |
 | `spec/requests/openapi_contract_spec.rb` + `spec/support/openapi_contract.rb` | contract test: every operation of `docs/openapi.json` is routable except the pinned PENDING list, and each implemented operation's real response matches its declared schema (dependency-free validator) |

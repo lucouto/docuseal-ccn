@@ -256,12 +256,59 @@ module Submitters
       end
     end
 
-    def calculate_formula_value(_formula, _values)
-      0
+    # CCN fork: upstream ships this as a stub returning 0 (the Pro engine overrides it). The signing form
+    # evaluates the same grammar client-side with a JavaScript port of Dentaku, so Dentaku is the
+    # server-side counterpart. Errors raise ValidationError (HTTP 422 to the signer) rather than storing
+    # a wrong number in a document that is about to be signed.
+    def calculate_formula_value(formula, values)
+      expression = formula.gsub(/{{(.*?)}}/) do
+        value = values[Regexp.last_match(1)]
+        value = value.first if value.is_a?(Array)
+
+        value.to_s.strip.presence || '0'
+      end
+
+      normalize_formula_result(Dentaku::Calculator.new.evaluate!(expression.downcase))
+    rescue Dentaku::Error, ZeroDivisionError, FloatDomainError => e
+      raise ValidationError, "Formula error: #{e.message}"
     end
 
-    def eval_text_formula_value(_formula, _values, _submission)
-      ''
+    def normalize_formula_result(result)
+      case result
+      when BigDecimal
+        result.frac.zero? ? result.to_i : result.to_f
+      when Float
+        raise ValidationError, 'Formula result is not a number' unless result.finite?
+
+        (result % 1).zero? ? result.to_i : result
+      else
+        result
+      end
+    end
+
+    # CCN fork: upstream stub returned ''. Mirrors evalTextFormula in submission_form/formula_areas.vue:
+    # {{uuid}} placeholders become the field value (arrays joined with ', '), nested formula fields are
+    # evaluated recursively (text → text formula, otherwise numeric).
+    def eval_text_formula_value(formula, values, submission, depth: 0)
+      raise ValidationError, 'Formula infinite loop' if depth > 10
+
+      formula.gsub(/{{(.*?)}}/) do
+        uuid = Regexp.last_match(1)
+        field = submission.fields_uuid_index[uuid]
+        nested_formula = field&.dig('preferences', 'formula').presence
+
+        if nested_formula.blank?
+          value = values[uuid]
+
+          value.is_a?(Array) ? value.join(', ') : value.to_s
+        elsif field['type'] == 'text'
+          eval_text_formula_value(nested_formula, values, submission, depth: depth + 1)
+        else
+          normalized = normalize_formula(nested_formula, submission, submission_values: values)
+
+          calculate_formula_value(normalized, values).to_s
+        end
+      end
     end
 
     def replace_current_date_placeholders(submitter)

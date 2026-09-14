@@ -37,7 +37,9 @@ describe Ccn::ManageAccountConfigs do
     expect { described_class.set(account, 'bcc_emails', true) }.to raise_error(Ccn::AdminInvalid, /string/)
     expect { described_class.set(account, 'bcc_emails', { a: 1 }) }.to raise_error(Ccn::AdminInvalid, /string/)
     expect { described_class.set(account, 'bcc_emails', 'x' * 20_001) }
-      .to raise_error(Ccn::AdminInvalid, /string/)
+      .to raise_error(Ccn::AdminInvalid, I18n.t('ccn_setting_too_long', key: 'bcc_emails', max: 20_000))
+    expect { described_class.set(account, 'form_completed_message', { 'body' => 'x' * 20_001 }) }
+      .to raise_error(Ccn::AdminInvalid, I18n.t('ccn_setting_too_long', key: 'form_completed_message', max: 20_000))
   end
 
   it 'stores objects with known members only, coercing true/false and dropping blanks' do

@@ -9,16 +9,18 @@
 # spec's declared response schema.
 describe 'OpenAPI contract' do
   # Pro-only in upstream 3.2.4 — implemented by the CCN fork in Stage 2 (FORK-PLAN.md §3.1).
-  pending_operations = [
-    %w[post /templates/pdf],
-    %w[post /templates/docx],
-    %w[post /templates/html],
-    %w[post /templates/merge],
-    %w[put /templates/{id}/documents],
-    %w[post /submissions/pdf],
-    %w[post /submissions/docx],
-    %w[post /submissions/html]
-  ]
+  let(:pending_operations) do
+    [
+      %w[post /templates/pdf],
+      %w[post /templates/docx],
+      %w[post /templates/html],
+      %w[post /templates/merge],
+      %w[put /templates/{id}/documents],
+      %w[post /submissions/pdf],
+      %w[post /submissions/docx],
+      %w[post /submissions/html]
+    ]
+  end
 
   let(:account) { create(:account) }
   let(:author) { create(:user, account:) }

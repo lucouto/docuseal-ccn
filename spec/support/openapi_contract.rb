@@ -63,9 +63,7 @@ module OpenapiContract
   end
 
   def validate_composite(value, schema, at)
-    if schema['allOf']
-      return schema['allOf'].flat_map { |sub| validate(value, sub, at) }
-    end
+    return schema['allOf'].flat_map { |sub| validate(value, sub, at) } if schema['allOf']
 
     alternatives = schema['oneOf'] || schema['anyOf']
     results = alternatives.map { |sub| validate(value, sub, at) }

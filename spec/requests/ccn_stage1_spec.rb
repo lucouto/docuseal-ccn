@@ -167,6 +167,7 @@ describe 'CCN Stage 1' do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_out_of_range'))
+      expect(submitter.reload.completed_at).to be_nil
     end
 
     it 'refuses a signer-controlled exponent that would take minutes to compute exactly' do
@@ -180,6 +181,64 @@ describe 'CCN Stage 1' do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_out_of_range'))
+      expect(submitter.reload.completed_at).to be_nil
+    end
+
+    it 'refuses a signer-controlled bit shift that would exhaust memory' do
+      template.update!(fields: template.fields.map do |f|
+        next f unless f['name'] == 'total'
+
+        f.merge('preferences' => { 'formula' => "ROUND({{#{uuids['a']}}}) << {{#{uuids['b']}}}" })
+      end)
+
+      put "/s/#{submitter.slug}", params: {
+        completed: 'true', values: { uuids['a'] => '1', uuids['b'] => '10000000000000000000' }
+      }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error_out_of_range'))
+      expect(submitter.reload.completed_at).to be_nil
+    end
+
+    it 'leaves the operands of a ^ alone when its IF branch is not taken' do
+      template.update!(fields: template.fields.map do |f|
+        next f unless f['name'] == 'total'
+
+        f.merge('preferences' => { 'formula' => "IF({{#{uuids['a']}}} > 0, 1, {{#{uuids['b']}}} ^ 2000)" })
+      end)
+
+      put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '5', uuids['b'] => '7' } }
+
+      expect(response).to have_http_status(:ok)
+      expect(submitter.reload.values[uuids['total']]).to eq(1)
+    end
+
+    it 'counts an array with several items as 0, like a blank value' do
+      template.update!(fields: template.fields.map do |f|
+        case f['name']
+        when 'b'
+          f.merge('type' => 'multiple', 'options' => %w[3 4].map { |v| { 'uuid' => SecureRandom.uuid, 'value' => v } })
+        when 'total' then f.merge('preferences' => { 'formula' => "{{#{uuids['a']}}} * {{#{uuids['b']}}} + 1" })
+        else f
+        end
+      end)
+
+      put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '2', uuids['b'] => %w[3 4] } }
+
+      expect(response).to have_http_status(:ok)
+      expect(submitter.reload.values[uuids['total']]).to eq(1)
+    end
+
+    it 'shows a generic message for a broken formula, without dentaku internals' do
+      template.update!(fields: template.fields.map do |f|
+        f['name'] == 'total' ? f.merge('preferences' => { 'formula' => "foo + {{#{uuids['a']}}}" }) : f
+      end)
+
+      put "/s/#{submitter.slug}", params: { completed: 'true', values: { uuids['a'] => '2', uuids['b'] => '1' } }
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body['error']).to eq(I18n.t('ccn_formula_error'))
+      expect(submitter.reload.completed_at).to be_nil
     end
 
     it 'refuses a referenced value with more than 20 significant digits' do

@@ -259,20 +259,18 @@ module Submitters
     # CCN fork: upstream ships this as a stub returning 0 (the Pro engine overrides it). The signing form
     # evaluates the same grammar client-side with a JavaScript port of Dentaku, so Dentaku is the
     # server-side counterpart. Field values are bound as numeric variables, never spliced into the
-    # expression text, and every {{uuid}} that is blank, non-numeric or a boolean counts as 0 (arrays: first item) —
+    # expression text, and every {{uuid}} that is blank, non-numeric, boolean or multi-item counts as 0 (a single-item array counts as its item) —
     # the same rule as numericFormulaValue in submission_form/formula_areas.vue. Errors raise
     # ValidationError (HTTP 422 to the signer) rather than storing a wrong number in a document that is
     # about to be signed.
     FORMULA_NUMBER_REGEXP = /\A-?\d+(\.\d+)?\z/
     FORMULA_RESULT_SCALE = 10
-    # Limits that keep a signer-controlled value from blowing up an exact (BigDecimal) evaluation:
-    # 7 ^ 100000 already has 84510 digits and 7 ^ 100000000 never finishes.
-    FORMULA_MAX_DIGITS = 20 # significant digits accepted in a referenced value
-    FORMULA_MAX_BASE_DIGITS = 100 # significant digits of the left operand of ^
-    FORMULA_MAX_EXPONENT = 1000 # absolute value of the right operand of ^
+    # BigDecimal#precision counts every digit needed to write a number out in plain decimal (1e20 → 21,
+    # 1e-20 → 20), so this bounds a referenced value's magnitude in both directions, not just its mantissa.
+    # The operands of ^, << and >> are bounded at evaluation time (config/initializers/zz_ccn_dentaku.rb).
+    FORMULA_MAX_DIGITS = 20
     FORMULA_MAX_RESULT_BITS = 1024 # integral results must stay within a double's range
-    # Ruby arithmetic errors that dentaku 4.0.2 does not wrap itself (Math::DomainError from BigDecimal#**
-    # with a negative base and a fractional exponent). RangeError covers FloatDomainError.
+    # Ruby arithmetic errors that dentaku 4.0.2 does not wrap itself. RangeError covers FloatDomainError.
     FORMULA_ERRORS = [Dentaku::Error, ::Math::DomainError, ::ZeroDivisionError, ::RangeError].freeze
 
     def calculate_formula_value(formula, values)
@@ -286,12 +284,11 @@ module Submitters
         name
       end
 
-      calculator = Dentaku::Calculator.new
-      node = calculator.ast(expression)
-
-      check_formula_exponents!(node, calculator, variables)
-
-      normalize_formula_result(calculator.evaluate!(node, variables))
+      normalize_formula_result(Dentaku::Calculator.new.evaluate!(expression, variables))
+    rescue Ccn::FormulaOutOfRange
+      formula_error!(:out_of_range)
+    rescue Ccn::FormulaNotANumber
+      formula_error!(:not_a_number)
     rescue *FORMULA_ERRORS => e
       raise ValidationError, formula_error_message(e)
     end
@@ -316,35 +313,6 @@ module Submitters
       number
     rescue ArgumentError, TypeError
       0
-    end
-
-    # `^` is the only dentaku operation whose cost grows with the magnitude of a value, so both operands of
-    # every Exponentiation node are evaluated and bounded before the whole expression is. Children first,
-    # so a `^` nested inside an operand is bounded before that operand is evaluated.
-    def check_formula_exponents!(node, calculator, variables)
-      formula_child_nodes(node).each { |child| check_formula_exponents!(child, calculator, variables) }
-
-      return unless node.is_a?(Dentaku::AST::Exponentiation)
-
-      base = calculator.evaluate!(node.left, variables)
-      exponent = calculator.evaluate!(node.right, variables)
-
-      formula_error!(:out_of_range) unless formula_operand_ok?(base, FORMULA_MAX_BASE_DIGITS)
-      formula_error!(:out_of_range) if exponent.is_a?(Numeric) && exponent.finite? &&
-                                       exponent.abs > FORMULA_MAX_EXPONENT
-    end
-
-    def formula_child_nodes(node)
-      node.instance_variables.flat_map { |ivar| Array(node.instance_variable_get(ivar)) }
-          .grep(Dentaku::AST::Node)
-    end
-
-    def formula_operand_ok?(operand, max_digits)
-      case operand
-      when Integer then operand.bit_length <= FORMULA_MAX_RESULT_BITS
-      when BigDecimal then operand.finite? && operand.precision <= max_digits
-      else true
-      end
     end
 
     def normalize_formula_result(result)
@@ -378,11 +346,13 @@ module Submitters
     end
 
     # The signer only sees translated messages; dentaku's own text (which names the bound variables) goes
-    # to the log.
+    # to the log. Math::DomainError is a StandardError on Ruby 4.0 (not an ArgumentError), which is why it
+    # escapes dentaku's Arithmetic#calculate unwrapped; Dentaku::MathDomainError is the wrapped form raised
+    # by SQRT, LOG and the other Math functions.
     def formula_error_message(exception)
       case exception
       when ::ZeroDivisionError then I18n.t('ccn_formula_error_zero_division')
-      when ::Math::DomainError then I18n.t('ccn_formula_error_not_a_number')
+      when ::Math::DomainError, Dentaku::MathDomainError then I18n.t('ccn_formula_error_not_a_number')
       else
         Rails.logger.warn("[ccn] formula error: #{exception.class}: #{exception.message}")
 

@@ -49,6 +49,7 @@ git rebase --onto <new-tag> <old-tag> ccn        # resolve using the table below
 | `.github/workflows/ccn-image.yml` | GHCR image build on `*-ccn.*` tags (linux/amd64) |
 | `CCN-CHANGES.md` | this register |
 | `config/initializers/zz_ccn.rb` | `Ccn::SOURCE_URL`, `SSO_ENABLED`, `SMS_ENABLED`, `EMBEDDING_ENABLED` |
+| `config/initializers/zz_ccn_dentaku.rb` | `Ccn::FormulaBounds` + prepends into dentaku 4.x `Exponentiation` / `BitwiseShiftLeft` / `BitwiseShiftRight`: operands of `^`, `<<`, `>>` are bounded at evaluation time (base ≤ 100 digits, exponent ≤ 1000, shift ≤ 64) → `Ccn::FormulaOutOfRange` / `Ccn::FormulaNotANumber`, turned into HTTP 422 by `Submitters::SubmitValues` |
 | `config/locales/ccn/ccn.yml` | fork strings (en, fr) |
 | `app/views/shared/_ccn_not_yet.html.erb` | neutral "not available on this instance yet" notice |
 | `spec/requests/ccn_stage1_spec.rb` | Stage 1 gate: switches on, no upsell strings on reachable pages, attribution + source link, formulas/conditions on completion |

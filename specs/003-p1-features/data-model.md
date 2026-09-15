@@ -111,8 +111,10 @@ User::ROLES = %w[admin editor viewer].freeze   # ADMIN_ROLE = 'admin' unchanged
 
 `manage self` rather than `update self` because `ProfileController` asks for `manage` on the user themselves.
 `:create` is then taken back from the two non-admin roles, because `UsersController` reads `can?(:create, user)`
-as "may administer users": it is what permits `archived_at` on an update (a viewer could otherwise archive
-themselves out of the instance) and what shows the "Add user" button.
+as "may administer users": it is what lets a *blank* `archived_at` through (an unarchive) and what shows the
+"Add user" button. It does not gate archiving as such — `archived_at` is in the controller's permitted list —
+so a non-admin can still archive themselves. Left as it is: it locks them out, an administrator undoes it,
+and no privilege is gained. Archiving or editing *somebody else* is refused, which is the rule that matters.
 
 Effect on `/api/ccn/...` (no controller change — `authorize!` already reads these rules): `users`,
 `webhooks`, `account_configs` → 403 for editor and viewer; `template_folders` → editor yes, viewer read-only;

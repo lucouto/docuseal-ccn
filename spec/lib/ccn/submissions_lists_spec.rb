@@ -90,7 +90,7 @@ describe Ccn::SubmissionsLists do
     result = described_class.parse(upload(csv), template)
 
     expect(result['rows_count']).to eq(3)
-    expect(result['errors']).to eq([{ 'line' => 4, 'error' => '"not-an-email" is not an e-mail address' }])
+    expect(result['errors']).to eq([{ 'line' => 3, 'error' => '"not-an-email" is not an e-mail address' }])
     expect(result['submissions_attrs']).to be_empty
   end
 

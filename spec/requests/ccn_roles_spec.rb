@@ -233,14 +233,26 @@ describe 'CCN roles' do
     end
 
     # `manage` on their own record carries `:create`, which UsersController reads as "may administer users":
-    # it is what permits archived_at on an update and what shows the "Add user" button.
-    it 'does not let a viewer archive themselves out of the instance' do
-      viewer_id = viewer.id
+    # it is what lets a blank archived_at through (an unarchive) and what shows the "Add user" button. It is
+    # *not* what lets a value through — archived_at is in the permitted list — so a non-admin archiving
+    # themselves is still possible, and deliberately left: it locks them out, an administrator undoes it, and
+    # no privilege is gained. What must not be possible is touching somebody else.
+    it 'does not let a viewer archive another user' do
+      colleague_id = editor.id
       sign_in(viewer)
 
-      put "/users/#{viewer_id}", params: { user: { archived_at: Time.current.iso8601 } }
+      put "/users/#{colleague_id}", params: { user: { archived_at: Time.current.iso8601 } }
 
-      expect(User.find(viewer_id).archived_at).to be_nil
+      expect(User.find(colleague_id).archived_at).to be_nil
+    end
+
+    it 'does not let a viewer rename another user' do
+      colleague_id = editor.id
+      sign_in(viewer)
+
+      put "/users/#{colleague_id}", params: { user: { first_name: 'Renamed' } }
+
+      expect(User.find(colleague_id).first_name).not_to eq('Renamed')
     end
 
     it 'still lets an administrator invite a user' do

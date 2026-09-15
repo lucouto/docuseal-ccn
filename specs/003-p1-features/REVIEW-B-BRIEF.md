@@ -140,9 +140,13 @@ the real role, and editing a name leaves the role alone.
 **LOW — fixed.**
 
 - `lib/ability.rb`: `manage` on one's own record carries `:create`, which `UsersController` reads as "may
-  administer users" — it permits `archived_at` on an update, so a **viewer could archive themselves out of
-  the instance**. `cannot :create, User` is now taken back from the editor and viewer branches only (an
+  administer users". `cannot :create, User` is now taken back from the editor and viewer branches only (an
   administrator's `:create` comes from their account-wide rule, so they are unaffected), with specs both ways.
+  **Correction to the finding, established by the spec that failed on CI**: `:create` does not gate archiving
+  as such — `archived_at` is in `UsersController#user_params`' permitted list, and line 72 only re-adds it
+  when *blank*, i.e. to allow an unarchive. So a non-admin can still archive **themselves**, and that is left
+  as it is: it locks them out, an administrator undoes it, and no privilege is gained. What the rules do
+  refuse, and what the specs now assert, is a non-admin archiving or editing **somebody else**.
 - `lib/ccn/account_logo.rb`: requiring `declared == detected` refused a genuine PNG that a file manager
   declared `application/octet-stream`. The magic bytes were always the real check; a *generic* declared type
   is now taken at its bytes, while a declared type naming a different type is still refused.

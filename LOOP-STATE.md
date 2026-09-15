@@ -4,8 +4,9 @@ Read this first on every run. Task list: `specs/003-p1-features/tasks.md` (28 ta
 gates). Constitution: `.specify/memory/constitution.md`. Operations cheat sheet: `~/Projets_apps_github/DocuSeal/CLAUDE.md`.
 
 **Scope of this stage**: US1 reminders, US2 account logo, US3 editor/viewer roles, US4 bulk CSV list
-(optional, P3). Ends at tag `3.2.4-ccn.5` on **staging**; promotion to production is Luciano's separate
-decision and is *not* part of this stage.
+(optional, P3). Ended at tag `3.2.4-ccn.5` on **staging**; promotion to production was Luciano's separate
+decision and he took it the same day — **`3.2.4-ccn.5` is live on production since 2026-09-15**, see
+*Promotion* at the foot of this file.
 
 ## How the work is verified here
 
@@ -139,3 +140,30 @@ Two bugs in the **gate script itself** were found by running it, both of which w
     the dashboard at `/` keeps the DocuSeal mark by design (spec.md US2 scenario 5). It shows on `/s/:slug`,
     `/d/:slug` and in e-mails, and nowhere else.
 - **Blocked**: nothing.
+
+## Promotion — `3.2.4-ccn.5` on production, 2026-09-15
+
+Luciano said "deploy to production" after reviewing the staging gate results. Procedure as recorded in
+`~/Projets_apps_github/DocuSeal/CLAUDE.md`: `prod-preflight.sh` → `prod-deploy-compose.sh prod-compose.yml`
+→ `prod-gates.sh`. Full entry: `PLAN.md` §8 row K.
+
+| | |
+|---|---|
+| Backups taken first | `pre-promo-docuseal-2026-09-15T124719Z.dump` (45 tables) + `…-data-…tgz` (2.8 MB) on the VM |
+| Compose change | one line — the image tag. Nothing else touched |
+| Gates | D1–D5 + fork smoke **ALL PASS**; `/version` → `3.2.4-ccn.5` |
+| Rollback | still one command, still clean — re-verified `db/` is untouched by `.4..5` and by `3.2.4..ccn` |
+
+Two things worth carrying forward:
+
+- **Reminders are dormant on production, and that was verified rather than assumed.** `/api/ccn/reminders/due`
+  answers 200 there now (it 404'd on `.4`), so the old "404 proves it is off" check no longer means anything.
+  What proves it is off: `CCN_REMINDERS_ENABLED` is `nil` and `Sidekiq::Cron::Job.all` is **empty** on the box.
+  Setting that flag is what starts automated mail to real signers — an explicit decision, never a side effect.
+- **`prod-gates.sh` D3 was wrong and is now fixed.** It read Coolify's service status once, straight after the
+  deploy, and got a stale `"exited"` while the app was already serving 200s on the new tag — i.e. it advised
+  rolling back a healthy production service. It now retries for two minutes before calling it a failure.
+
+Still owed by hand, none of them automatable: D6 admin login, D7 one real signature request end to end, and
+the one real reminder in a mailbox that staging could never deliver. No CCN logo is attached on the production
+account — signing pages and e-mails there still show the DocuSeal mark.

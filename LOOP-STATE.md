@@ -218,6 +218,22 @@ Two things this exposed beyond the rule itself:
   assertion. The two ways this feature can quietly misbehave — mailing the wrong person, or scheduling
   nobody at all — are now both gated.
 
+## Released — `3.2.4-ccn.6`, staging and production, 2026-09-15
+
+Both defects above shipped in `3.2.4-ccn.6` on Luciano's instruction ("as soon as CI is green, proceed to
+staging then production"). CI needed two rounds: the viewer guard failed three reminder specs that were
+building submitters with a random uuid — a shape DocuSeal cannot produce, since a submitter's uuid is always
+one of the submission's `template_submitters`. They now take the real uuid, which makes them test a record
+that can exist.
+
+| | staging | production |
+|---|---|---|
+| version | `3.2.4-ccn.6` | `3.2.4-ccn.6` |
+| sweep registered in Redis | ✅ `ccn_send_submitter_reminders`, `*/15 * * * *` | ✅ same |
+| gates | S1 PASS · S1-bounds PASS · S2 27/0 · S3 42/0 · **S4 46/0** | D1–D5 + fork smoke ALL PASS |
+
+Production also has the **CCN logo** attached and the schedule set to **24 h / 3 days / 7 days**.
+
 Consequence worth knowing: **production currently has nobody to remind.** Submission 4 is fully signed bar
 the viewer, and the only other pending submitter is declined and archived. Switching the schedule on is a
 no-op today, which is correct — and it means the "one real reminder in a mailbox" item stays open until a

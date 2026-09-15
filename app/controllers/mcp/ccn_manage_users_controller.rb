@@ -31,7 +31,9 @@ module Mcp
     }.freeze
 
     def call
-      authorize!(:manage, User)
+      # Stage 4: the account, not the User class — see Api::CcnUsersController for why a class check would
+      # let an editor through on the strength of their own-profile rule.
+      authorize!(:manage, current_user.account)
 
       account = current_user.account
 

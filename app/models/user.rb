@@ -47,8 +47,13 @@
 #  fk_rails_...  (account_id => accounts.id)
 #
 class User < ApplicationRecord
+  include Ccn::LastAdminGuard # CCN fork: an account keeps an administrator (specs/003-p1-features, US3)
+
   ROLES = [
-    ADMIN_ROLE = 'admin'
+    ADMIN_ROLE = 'admin',
+    # CCN fork: the two roles lib/ability.rb branches on (specs/003-p1-features, US3)
+    EDITOR_ROLE = 'editor',
+    VIEWER_ROLE = 'viewer'
   ].freeze
 
   EMAIL_REGEXP = /[^@;,<>\s]+@[^@;,<>\s]+/

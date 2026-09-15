@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class UsersController < ApplicationController
+  include Ccn::UsersControllerGuard # CCN fork: the last-admin guard as an alert (specs/003-p1-features, US3)
+
   load_and_authorize_resource :user, only: %i[index edit update destroy]
 
   before_action :build_user, only: %i[new create]

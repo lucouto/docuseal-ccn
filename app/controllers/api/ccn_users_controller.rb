@@ -6,7 +6,10 @@ module Api
   class CcnUsersController < ApiBaseController
     include Ccn::AdminErrors
 
-    before_action { authorize!(:manage, User) }
+    # Stage 4: the gate is the account, not the User class. Every role may `manage` *their own* User record
+    # (their profile, signature and tokens), and CanCan cannot evaluate that rule's `id:` condition against a
+    # class — `can?(:manage, User)` would answer true for an editor and open user administration to them.
+    before_action { authorize!(:manage, current_account) }
     before_action :load_user, only: %i[show update destroy reset_password]
 
     def index

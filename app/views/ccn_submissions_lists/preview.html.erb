@@ -1,0 +1,57 @@
+<%# CCN fork — Stage 4, US4 (specs/003-p1-features): what the file was read as, before anything is sent. %>
+<div class="max-w-4xl mx-auto px-2 py-6 space-y-6">
+  <div class="flex items-center justify-between gap-4">
+    <h1 class="text-2xl md:text-3xl font-bold"><%= @template.name %></h1>
+    <%= link_to t('back'), new_template_submission_path(@template), class: 'btn btn-outline btn-sm' %>
+  </div>
+
+  <% if @result['errors'].present? %>
+    <div class="alert alert-error">
+      <%= svg_icon('info_circle', class: 'w-6 h-6') %>
+      <span><%= t('ccn_list_nothing_sent') %></span>
+    </div>
+    <ul class="list-disc pl-6 space-y-1">
+      <% @result['errors'].each do |error| %>
+        <li><span class="font-semibold"><%= error['line'] %>.</span> <%= error['error'] %></li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="text-xl">
+      <span class="font-bold"><%= @result['rows_count'] %></span> <%= t('ccn_list_recipients_found') %>
+    </p>
+  <% end %>
+
+  <% if @result['preview'].present? %>
+    <div>
+      <p class="font-semibold mb-2"><%= t('ccn_list_first_rows') %></p>
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <% @result['preview'].first.keys.each do |column| %>
+                <th><%= column %></th>
+              <% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% @result['preview'].each do |row| %>
+              <tr>
+                <% row.each_value do |value| %>
+                  <td><%= value %></td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% end %>
+
+  <% if @payload.present? %>
+    <%= form_with url: template_submissions_lists_path(@template), method: :post, html: { autocomplete: 'off' }, data: { turbo_frame: :_top } do |f| %>
+      <%= f.hidden_field :payload, value: @payload %>
+      <%= f.hidden_field :send_email, value: @send_email %>
+      <%= f.button button_title(title: t('ccn_list_send', count: @result['rows_count']), disabled_with: t('submitting')), class: 'base-button' %>
+    <% end %>
+  <% end %>
+</div>

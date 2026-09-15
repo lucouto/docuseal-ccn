@@ -54,7 +54,7 @@ and release.
 
 ## Review B (after phase 5)
 
-- [ ] T019 Diff-only reviewer on phases 4–5; findings fixed; CI green
+- [x] T019 Diff-only reviewer on phases 4–5; findings fixed; CI green
 
 ## Phase 6: Documentation
 
@@ -64,8 +64,8 @@ and release.
 
 ## Phase 7: Bulk list (US4, optional — implement only if phases 1–6 are green and time remains)
 
-- [ ] T023 `lib/ccn/submissions_lists.rb` — `parse(file, template)` (CSV via stdlib, XLSX via `RubyXL::Parser`, first sheet only, ≤ 500 rows, header requires `email`, role-prefixed columns for multi-role templates) returning `{columns, rows_count, preview, errors}` or per-line errors + `spec/lib/ccn/submissions_lists_spec.rb` (CSV happy path, XLSX happy path, missing `email` column refused, >500 rows refused, bad row reported by line, whole file refused on any error)
-- [ ] T024 `app/controllers/ccn_submissions_lists_controller.rb` (`preview`/`create`, calls `Submissions.create_from_submitters` per row) + `app/views/submissions/_list_form.html.erb` filled in (upload, column mapping, preview, confirm) + `spec/requests/ccn_submissions_lists_spec.rb` (3-row CSV → 3 submissions with `send_email` as chosen, invalid file refused with nothing created)
+- [x] T023 `lib/ccn/submissions_lists.rb` — `parse(file, template)` (CSV via stdlib, XLSX via `RubyXL::Parser`, first sheet only, ≤ 500 rows, header requires `email`, role-prefixed columns for multi-role templates) returning `{columns, rows_count, preview, errors}` or per-line errors + `spec/lib/ccn/submissions_lists_spec.rb` (CSV happy path, XLSX happy path, missing `email` column refused, >500 rows refused, bad row reported by line, whole file refused on any error)
+- [x] T024 `app/controllers/ccn_submissions_lists_controller.rb` (`preview`/`create`, calls `Submissions.create_from_submitters` per row) + `app/views/submissions/_list_form.html.erb` filled in (upload, column mapping, preview, confirm) + `spec/requests/ccn_submissions_lists_spec.rb` (3-row CSV → 3 submissions with `send_email` as chosen, invalid file refused with nothing created)
 
 ## Review C (after phase 6, or phases 6–7 if US4 was implemented)
 

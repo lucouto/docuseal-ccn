@@ -1,1 +1,25 @@
-<%= render 'shared/ccn_not_yet' %>
+<%# CCN fork — Stage 4, US4 (specs/003-p1-features): the "Upload list" tab. The file goes to a preview first;
+    nothing is sent until the count and the first rows have been read back. %>
+<div class="space-y-4 mt-4">
+  <%= form_with url: preview_template_submissions_lists_path(template), method: :post, html: { autocomplete: 'off', class: 'space-y-4', enctype: 'multipart/form-data' }, data: { turbo_frame: :_top } do |f| %>
+    <div class="form-control">
+      <%= f.file_field :file, accept: '.csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', required: true, class: 'file-input file-input-bordered w-full' %>
+      <label class="label">
+        <span class="label-text-alt"><%= t('ccn_list_hint', max: Ccn::SubmissionsLists::MAX_ROWS) %></span>
+      </label>
+    </div>
+    <% if can_send_emails %>
+      <div class="form-control">
+        <label class="label cursor-pointer justify-start space-x-3">
+          <%= f.check_box :send_email, { checked: true, class: 'base-checkbox' }, '1', '0' %>
+          <span class="label-text"><%= t('send_email') %></span>
+        </label>
+      </div>
+    <% else %>
+      <%= f.hidden_field :send_email, value: '0' %>
+    <% end %>
+    <div class="form-control pt-2">
+      <%= f.button button_title(title: t('preview'), disabled_with: t('uploading')), class: 'base-button' %>
+    </div>
+  <% end %>
+</div>

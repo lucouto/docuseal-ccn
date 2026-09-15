@@ -152,6 +152,10 @@ Rails.application.routes.draw do
     resources :restore, only: %i[create], controller: 'templates_restore'
     resources :archived, only: %i[index], controller: 'templates_archived_submissions'
     resources :submissions, only: %i[new create]
+    # CCN fork — Stage 4, US4 (specs/003-p1-features): the "Upload list" tab's two steps.
+    resources :submissions_lists, only: %i[create], controller: 'ccn_submissions_lists' do
+      post :preview, on: :collection
+    end
     resource :folder, only: %i[edit update], controller: 'templates_folders'
     resource :preview, only: %i[show], controller: 'templates_preview'
     resource :form, only: %i[show], controller: 'templates_form_preview'

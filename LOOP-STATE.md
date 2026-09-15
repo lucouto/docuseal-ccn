@@ -23,10 +23,10 @@ decision and is *not* part of this stage.
 | 3 Reminders API + UI (US1) | T008–T010 | **done** (`55c4cfd3`) |
 | Review A | T011 | **done** — 5 findings, all fixed in `822e77bb`; brief + outcome in `REVIEW-A-BRIEF.md` |
 | 4 Account logo (US2) | T012–T015 | **done** — CI round 1 found 2 spec failures (multipart), fixed |
-| 5 Roles (US3) | T016–T018 | **done** — static checks green, rspec on CI |
-| Review B | T019 | not started |
-| 6 Documentation | T020–T022 | not started |
-| 7 Bulk list (US4, optional) | T023–T024 | not started |
+| 5 Roles (US3) | T016–T018 | **done** — CI round 1 found 1 spec failure (a lazy `let`), fixed |
+| Review B | T019 | **done** — 1 HIGH + 6 LOW; 4 fixed, 3 recorded, 1 needs Luciano (see `REVIEW-B-BRIEF.md`) |
+| 6 Documentation | T020–T022 | **done** — CI green (543 examples) on `85213247` |
+| 7 Bulk list (US4, optional) | T023–T024 | **done** — implemented: phases 1–6 were green and budget remained |
 | Review C | T025 | not started |
 | 8 Gate + release | T026–T028 | not started |
 
@@ -76,5 +76,24 @@ decision and is *not* part of this stage.
     exercises, alongside the one reachable UI path (`PUT /users/:id` with `archived_at` on oneself, which
     upstream does not strip) and `DELETE /users/:id`, which archives with `update!` and would be a 500
     without `Ccn::UsersControllerGuard`.
-- **Needs validation (Luciano)**: nothing yet.
-- **Blocked**: nothing yet.
+- **Review B's HIGH is the one to remember**: `f.select` built from a block never marks an option `selected`
+  (`options_for_select` returns a String container untouched). Enabling the editor/viewer options turned a
+  latent bug into a live privilege escalation — the Edit-user form always showed *Admin*, and the form
+  permits `role`. Any other `f.select … do` in this fork deserves the same look.
+- **Phase 7 decisions**:
+  - The rows travel from the preview to the send in a **signed payload** (`ApplicationRecord.signed_id_verifier`,
+    1 hour, its own purpose, template id inside), not a re-upload and not a session: what is confirmed is
+    what was previewed, and it cannot be edited on the way. A payload signed for another template is refused.
+  - A row's address is validated with the rule `Params::BaseValidator` applies on the API (typo correction
+    included), so a row the list accepts is one `POST /api/submissions` would have accepted.
+  - The preview is keyed by the **raw header**, not by the normalized column name: with two roles both
+    columns are called `email` and one would otherwise overwrite the other.
+  - A column naming nothing is dropped rather than refused, and the preview shows only the columns that were
+    understood — a misspelt header is then visible as a missing column instead of silently ignored.
+- **Needs validation (Luciano)**:
+  - `start_form/_docuseal_logo` keeps upstream's `<h1 class="text-5xl">DocuSeal</h1>` next to the account's
+    logo (research D8: the logo replaces the mark, not the wordmark). "CCN logo + DocuSeal" at that size is a
+    branding call, not an engineering one. The §7(b) attribution is the footer and is untouched either way.
+  - US4's *visual* flow (the Upload list tab, the preview page) has request-spec coverage end to end but has
+    never been opened in a browser — no way to run the app on this machine. Worth one manual pass on staging.
+- **Blocked**: nothing.

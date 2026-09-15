@@ -119,6 +119,8 @@ describe 'CCN roles' do
   describe 'reading' do
     let(:submission) { create(:submission, :with_submitters, template:) }
 
+    before { template } # `template` is lazy: it must exist before the request, not be created by the assertion
+
     it 'lets both roles list templates' do
       [editor, viewer].each do |user|
         as(user, :get, '/api/templates')

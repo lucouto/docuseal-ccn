@@ -91,6 +91,12 @@ decision and is *not* part of this stage.
   - A column naming nothing is dropped rather than refused, and the preview shows only the columns that were
     understood — a misspelt header is then visible as a missing column instead of silently ignored.
 - **Needs validation (Luciano)**:
+  - **The S4 gate cannot be closed in full on staging.** `FORK-PLAN.md` §10 asks for "one real reminder in
+    Luciano's mailbox from staging", and the constitution forbids exactly that ("staging never e-mails";
+    `staging-compose.yml` deliberately declares no `SMTP_*`). `spec.md` anticipated the clash — SC-002 defers
+    the real delivery to "after promotion to production, or on staging if Luciano configures SMTP to his own
+    mailbox". Everything else in the S4 gate runs; the delivered e-mail is covered by the mailer spec only.
+    Luciano's call: point staging SMTP at his own mailbox for one run, or accept the deferral to promotion.
   - `start_form/_docuseal_logo` keeps upstream's `<h1 class="text-5xl">DocuSeal</h1>` next to the account's
     logo (research D8: the logo replaces the mark, not the wordmark). "CCN logo + DocuSeal" at that size is a
     branding call, not an engineering one. The §7(b) attribution is the footer and is untouched either way.

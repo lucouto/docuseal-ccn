@@ -28,7 +28,28 @@ decision and is *not* part of this stage.
 | 6 Documentation | T020–T022 | **done** — CI green (543 examples) on `85213247` |
 | 7 Bulk list (US4, optional) | T023–T024 | **done** — implemented: phases 1–6 were green and budget remained |
 | Review C | T025 | **done** — 2 HIGH + 6 MEDIUM + 6 LOW; all fixed but one, recorded (see `REVIEW-C-BRIEF.md`) |
-| 8 Gate + release | T026–T028 | `staging-s4-check.sh` written (ops folder); tag + deploy + gates next |
+| 8 Gate + release | T026–T028 | **done** — `3.2.4-ccn.5` live on staging, all five gates PASS (see below) |
+
+## Stage 4 gate results — `3.2.4-ccn.5` on staging, 2026-09-15
+
+| Gate | Result |
+|------|--------|
+| `staging-s1-check.sh` (formulas, conditions, attribution) | PASS |
+| `staging-s1-bounds-check.sh` (formula DoS bounds) | PASS |
+| `staging-s2-check.sh` (the 8 ingestion operations) | 27 passed, 0 failed |
+| `staging-s3-check.sh` (the admin API + MCP) | 42 passed, 0 failed |
+| `staging-s4-check.sh` (reminders, logo, roles, last-admin) | 43 passed, 0 failed, 0 skipped |
+
+Two bugs in the **gate script itself** were found by running it, both of which would have made it lie:
+
+- `docker exec` starts in the image's WorkingDir (`/data/docuseal`), where there is no Gemfile, so every
+  `rails runner` step failed — and they were classed as *skips*, so the script would have printed
+  "0 failed" and exited 0 having checked almost nothing. It now passes `-w /app`, and an unreachable runner
+  is a **failure**, not a skip.
+- The last-admin assertion counted administrators **globally**. Staging carries a testing account beside the
+  real one, each with a single admin, so a global count said "two administrators" and the script took the
+  wrong branch. The guard itself was right all along — it is account-scoped, and refused to demote the last
+  admin of account 1. The count is now scoped the same way.
 
 ## What the next run must know
 

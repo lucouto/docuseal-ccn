@@ -73,9 +73,9 @@ and release.
 
 ## Phase 8: Gate + release
 
-- [ ] T026 `staging-s4-check.sh`: reminders (set short durations by API, create a submission by API, move `sent_at` back via `rails runner` over `ssh coolify-vm` — never by editing signer-visible state any other way —, `GET …/due` lists stage 1, `POST …/run` with `dry_run:true` then real: staging has no SMTP so it reports the signer skipped "no e-mail delivery" and writes no event, config restored); logo (upload by API, `/s/:slug` HTML has the `<img>` and unchanged attribution text, `DELETE` restores the mark); roles (invite one editor + one viewer by API, mint their tokens via the runner into shell variables — never printed —, run the SC-004 200/403 matrix, archive both, confirm last-admin guard 422 on the gate's own admin) — no 5xx anywhere, account left as it found it
-- [ ] T027 Tag `3.2.4-ccn.5`, image build, `staging-deploy-tag.sh 3.2.4-ccn.5`, gates S1 + bounds + S2 + S3 + S4 all PASS
-- [ ] T028 `CLAUDE.md` (operations directory) cheat sheet: `/api/ccn/reminders/*`, `/api/ccn/account_logo`, the role matrix, `CCN_REMINDERS_ENABLED`; `LOOP-STATE.md`; memory (`docuseal-fork-plan.md`, `MEMORY.md`)
+- [x] T026 `staging-s4-check.sh`: reminders (set short durations by API, create a submission by API, move `sent_at` back via `rails runner` over `ssh coolify-vm` — never by editing signer-visible state any other way —, `GET …/due` lists stage 1, `POST …/run` with `dry_run:true` then real: staging has no SMTP so it reports the signer skipped "no e-mail delivery" and writes no event, config restored); logo (upload by API, `/s/:slug` HTML has the `<img>` and unchanged attribution text, `DELETE` restores the mark); roles (invite one editor + one viewer by API, mint their tokens via the runner into shell variables — never printed —, run the SC-004 200/403 matrix, archive both, confirm last-admin guard 422 on the gate's own admin) — no 5xx anywhere, account left as it found it
+- [x] T027 Tag `3.2.4-ccn.5`, image build, `staging-deploy-tag.sh 3.2.4-ccn.5`, gates S1 + bounds + S2 + S3 + S4 all PASS
+- [x] T028 `CLAUDE.md` (operations directory) cheat sheet: `/api/ccn/reminders/*`, `/api/ccn/account_logo`, the role matrix, `CCN_REMINDERS_ENABLED`; `LOOP-STATE.md`; memory (`docuseal-fork-plan.md`, `MEMORY.md`)
 
 ## Dependencies
 

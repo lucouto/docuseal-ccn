@@ -31,14 +31,11 @@ module Api
 
     private
 
-    # `file` is base64, a data URI or an https URL, as the ingestion endpoints accept it; a multipart upload
-    # (curl -F file=@logo.png) is taken as it comes.
+    # `file` is base64, a data URI or an https URL, as the ingestion endpoints accept it. Not a multipart
+    # upload: ApiPathConsiderJsonMiddleware reads every /api request as JSON whatever its content type, so a
+    # `-F file=@logo.png` never reaches a controller as a file. The settings page is the upload route.
     def uploaded_file
-      file = params[:file]
-
-      return file if file.respond_to?(:tempfile)
-
-      Ccn::DocumentParams.file_from(file, param: 'file', name: params[:name])
+      Ccn::DocumentParams.file_from(params[:file], param: 'file', name: params[:name])
     end
 
     def serialize(logo)

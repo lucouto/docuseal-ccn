@@ -17,15 +17,6 @@ describe 'CCN account logo API' do
     public_send(method, path, headers:, params: body&.to_json)
   end
 
-  def upload_of(bytes, filename, content_type)
-    tempfile = Tempfile.new(['logo', File.extname(filename)])
-    tempfile.binmode
-    tempfile.write(bytes)
-    tempfile.rewind
-
-    Rack::Test::UploadedFile.new(tempfile, content_type, original_filename: filename)
-  end
-
   describe 'GET /api/ccn/account_logo' do
     it 'is 404 while no logo is attached' do
       api :get, '/api/ccn/account_logo'
@@ -74,15 +65,6 @@ describe 'CCN account logo API' do
       expect(account.reload.logo.download).to eq(png_bytes)
     end
 
-    it 'accepts a multipart upload' do
-      put '/api/ccn/account_logo',
-          headers: { 'x-auth-token': admin.access_token.token },
-          params: { file: upload_of(png_bytes, 'logo.png', 'image/png') }
-
-      expect(response).to have_http_status(:ok)
-      expect(account.reload.logo.download).to eq(png_bytes)
-    end
-
     it 'replaces a logo already stored' do
       api :put, '/api/ccn/account_logo', { file: png_base64 }
       first_blob_id = account.reload.logo.blob.id
@@ -104,9 +86,7 @@ describe 'CCN account logo API' do
     it 'refuses an image over 2 MB' do
       oversize = png_bytes + ("\x00".b * (2.megabytes + 1))
 
-      put '/api/ccn/account_logo',
-          headers: { 'x-auth-token': admin.access_token.token },
-          params: { file: upload_of(oversize, 'logo.png', 'image/png') }
+      api :put, '/api/ccn/account_logo', { file: Base64.strict_encode64(oversize) }
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(json['error']).to eq('The logo must be at most 2 MB')
@@ -135,6 +115,64 @@ describe 'CCN account logo API' do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(json['error']).to eq('file is not valid base64 (or an https URL)')
+    end
+  end
+
+  # The settings page is the only route that takes a file upload: ApiPathConsiderJsonMiddleware reads every
+  # /api request as JSON, so the API takes base64/data URI/URL and this form takes the multipart.
+  describe 'Settings → Personalization → Company logo' do
+    def upload_of(bytes, filename, content_type)
+      tempfile = Tempfile.new(['logo', File.extname(filename)])
+      tempfile.binmode
+      tempfile.write(bytes)
+      tempfile.rewind
+
+      Rack::Test::UploadedFile.new(tempfile, content_type, original_filename: filename)
+    end
+
+    before { sign_in(admin) }
+
+    it 'stores an uploaded image and shows it on the page' do
+      post '/settings/personalization_logo', params: { file: upload_of(png_bytes, 'logo.png', 'image/png') }
+
+      expect(response).to redirect_to(settings_personalization_path)
+      expect(account.reload.logo).to be_attached
+
+      get '/settings/personalization'
+
+      expect(response.body).to include(ActiveStorage::Blob.proxy_path(account.logo.blob))
+    end
+
+    it 'refuses a file that is not one of the three image types' do
+      post '/settings/personalization_logo', params: { file: upload_of(svg_bytes, 'logo.svg', 'image/svg+xml') }
+
+      expect(flash[:alert]).to eq('The logo must be a PNG, JPEG or WebP image')
+      expect(account.reload.logo).not_to be_attached
+    end
+
+    it 'asks for a file when the form is submitted without one' do
+      post '/settings/personalization_logo'
+
+      expect(flash[:alert]).to eq('Choose an image file to upload')
+      expect(account.reload.logo).not_to be_attached
+    end
+
+    it 'removes the logo' do
+      post '/settings/personalization_logo', params: { file: upload_of(png_bytes, 'logo.png', 'image/png') }
+
+      delete '/settings/personalization_logo'
+
+      expect(response).to redirect_to(settings_personalization_path)
+      expect(account.reload.logo).not_to be_attached
+    end
+
+    it 'refuses a signed-in editor' do
+      sign_in(create(:user, account:, role: 'editor'))
+
+      post '/settings/personalization_logo', params: { file: upload_of(png_bytes, 'logo.png', 'image/png') }
+
+      expect(response).to redirect_to(root_path)
+      expect(account.reload.logo).not_to be_attached
     end
   end
 

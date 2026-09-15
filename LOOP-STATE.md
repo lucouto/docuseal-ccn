@@ -22,8 +22,8 @@ decision and is *not* part of this stage.
 | 2 Reminders mailer + job (US1) | T005–T007 | **done** (`55c4cfd3`) |
 | 3 Reminders API + UI (US1) | T008–T010 | **done** (`55c4cfd3`) |
 | Review A | T011 | **done** — 5 findings, all fixed in `822e77bb`; brief + outcome in `REVIEW-A-BRIEF.md` |
-| 4 Account logo (US2) | T012–T015 | **done** — static checks green, rspec on CI |
-| 5 Roles (US3) | T016–T018 | not started |
+| 4 Account logo (US2) | T012–T015 | **done** — CI round 1 found 2 spec failures (multipart), fixed |
+| 5 Roles (US3) | T016–T018 | **done** — static checks green, rspec on CI |
 | Review B | T019 | not started |
 | 6 Documentation | T020–T022 | not started |
 | 7 Bulk list (US4, optional) | T023–T024 | not started |
@@ -48,5 +48,33 @@ decision and is *not* part of this stage.
     attribution are untouched, which is what keeps §7(b) structural rather than a thing to remember.
   - `Ccn::DocumentParams.file_from` was added for a payload with one named `file` key (`decode` grew an
     optional `param:` for the message; every existing call site is unchanged).
+- **Phase 4, CI round 1** — two spec failures, both mine, both about multipart: `ApiPathConsiderJsonMiddleware`
+  rewrites the content type of *every* `/api` request to `application/json` (bar four whitelisted suffixes),
+  so a `-F file=@logo.png` can never reach an API controller as a file. The API takes base64/data URI/https
+  URL only; the multipart branch was removed as dead code and the settings page (which is not under `/api`)
+  got the upload request spec instead. **Generalizable: no `/api/...` endpoint in this fork can take a
+  multipart upload.**
+- **Phase 5 decisions**:
+  - **A CanCan class-level check ignores a rule's conditions** (`matches_non_block_conditions` returns
+    `@base_behavior` when the subject is a Class). Giving every role `can :manage, User, id: user.id` — which
+    ProfileController's `authorize!(:manage, current_user)` requires — therefore made `can?(:manage, User)`
+    true for editors and viewers, and `Api::CcnUsersController`/`Mcp::CcnManageUsersController` gated exactly
+    on that: **an editor could have listed and invited users, including administrators.** Both now gate on
+    `authorize!(:manage, current_account)` (an instance, so conditions are evaluated), matching what
+    `CcnRemindersController` and `CcnAccountLogoController` already did. Both files are fork-owned (Stage 3),
+    so this is not an upstream edit — but it *is* a deviation from FR-008's "without controller changes", and
+    it is the first thing Review B should look at. Every other admin endpoint was checked and is safe:
+    webhooks and account configs have no rule at all for these roles, and `template_folders` is
+    editor-by-design.
+  - **`/api/ccn/template_folders` refuses a viewer even on GET**, because the namespace asks for `manage` in
+    one before_action. contracts/README.md says "viewer 200 on GET"; FR-008 says the 403s must come from the
+    existing authorize! calls. Resolved in favour of FR-008 — to be noted on the operation in T020 rather
+    than worked around with a second authorize! call.
+  - **The last-admin guard is only reachable from someone else's hands**: both the UI and `Ccn::ManageUsers`
+    refuse a self role/archive change first, so the case the guard actually prevents is the *integration*
+    account (automation) archiving or demoting the last human administrator. That is what the request spec
+    exercises, alongside the one reachable UI path (`PUT /users/:id` with `archived_at` on oneself, which
+    upstream does not strip) and `DELETE /users/:id`, which archives with `update!` and would be a 500
+    without `Ccn::UsersControllerGuard`.
 - **Needs validation (Luciano)**: nothing yet.
 - **Blocked**: nothing yet.

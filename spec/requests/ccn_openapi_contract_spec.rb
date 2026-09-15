@@ -25,8 +25,8 @@ describe 'CCN OpenAPI contract (docs/openapi-ccn.json)' do
     expect(document['openapi']).to eq('3.1.0')
     expect(document.dig('components', 'securitySchemes', 'AuthToken')).to eq('type' => 'apiKey', 'in' => 'header',
                                                                              'name' => 'X-Auth-Token')
-    expect(operations.size).to eq(29)
-    expect(operations.map { |op| op[:operation]['operationId'] }.uniq.size).to eq(29)
+    expect(operations.size).to eq(34)
+    expect(operations.map { |op| op[:operation]['operationId'] }.uniq.size).to eq(34)
 
     unrouted = operations.reject { |op| OpenapiContract.routable?(op[:method], op[:path]) }
     expect(unrouted.map { |op| "#{op[:method].upcase} #{op[:path]}" }).to be_empty
@@ -94,7 +94,17 @@ describe 'CCN OpenAPI contract (docs/openapi-ccn.json)' do
       ['post', '/ccn/templates/{id}/detect_fields',
        -> { api :post, "/api/ccn/templates/#{template.id}/detect_fields" }],
       ['put', '/templates/{id}',
-       -> { api :put, "/api/templates/#{template.id}", { preferences: { request_email_subject: 'Signez' } } }]
+       -> { api :put, "/api/templates/#{template.id}", { preferences: { request_email_subject: 'Signez' } } }],
+      # Stage 4. The reminders run answers `disabled` before it reaches Redis while no duration is configured,
+      # which is the state this account is in — so no Sidekiq stub is needed here.
+      ['get', '/ccn/reminders/due', -> { api :get, '/api/ccn/reminders/due' }],
+      ['post', '/ccn/reminders/run', -> { api :post, '/api/ccn/reminders/run', { dry_run: true } }],
+      ['put', '/ccn/account_logo', lambda {
+        png = Base64.strict_encode64(Rails.root.join('spec/fixtures/sample-image.png').binread)
+        api :put, '/api/ccn/account_logo', { file: png, name: 'logo' }
+      }],
+      ['get', '/ccn/account_logo', -> { api :get, '/api/ccn/account_logo' }],
+      ['delete', '/ccn/account_logo', -> { api :delete, '/api/ccn/account_logo' }]
     ]
 
     documented = operations.map { |op| [op[:method], op[:path]] }

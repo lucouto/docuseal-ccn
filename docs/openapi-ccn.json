@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "version": "3.2.4-ccn.4",
+    "version": "3.2.4-ccn.5",
     "title": "DocuSeal CCN API (fork additions)",
-    "description": "Operations the CCN fork adds to DocuSeal's API (docs/openapi.json documents the upstream ones, all implemented). Administration functions that are UI-only in DocuSeal (users, webhooks, account settings, template folders, template versions, field detection) plus the `preferences` extension of PUT /templates/{id}. Same authentication as upstream (X-Auth-Token). Every refused request answers 422 {\"error\": \"...\"}.",
+    "description": "Operations the CCN fork adds to DocuSeal's API (docs/openapi.json documents the upstream ones, all implemented). Administration functions that are UI-only in DocuSeal (users, webhooks, account settings, the account logo, template folders, template versions, field detection, signer reminders) plus the `preferences` extension of PUT /templates/{id}. Same authentication as upstream (X-Auth-Token). Every refused request answers 422 {\"error\": \"...\"}. Account roles (Stage 4): every operation here requires an administrator's token unless its `x-ccn-role-note` says otherwise — an editor's or a viewer's token answers 403.",
     "contact": {
       "name": "docuseal-ccn",
       "url": "https://github.com/lucouto/docuseal-ccn"
@@ -23,7 +23,8 @@
     "Users",
     "Webhooks",
     "Account",
-    "Templates"
+    "Templates",
+    "Reminders"
   ],
   "paths": {
     "/ccn/users": {
@@ -2613,7 +2614,8 @@
               }
             }
           }
-        }
+        },
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted. A viewer’s answers 403 on every operation of this namespace, listing included — one authorization check covers them all. A viewer still sees each template’s folder through GET /templates."
       },
       "post": {
         "security": [
@@ -2736,7 +2738,8 @@
               }
             }
           }
-        }
+        },
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted. A viewer’s answers 403 on every operation of this namespace, listing included — one authorization check covers them all. A viewer still sees each template’s folder through GET /templates."
       }
     },
     "/ccn/template_folders/{id}": {
@@ -2868,7 +2871,8 @@
               }
             }
           }
-        }
+        },
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted. A viewer’s answers 403 on every operation of this namespace, listing included — one authorization check covers them all. A viewer still sees each template’s folder through GET /templates."
       },
       "delete": {
         "security": [
@@ -2980,7 +2984,8 @@
               }
             }
           }
-        }
+        },
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted. A viewer’s answers 403 on every operation of this namespace, listing included — one authorization check covers them all. A viewer still sees each template’s folder through GET /templates."
       }
     },
     "/ccn/templates/{id}/versions": {
@@ -3152,7 +3157,8 @@
               }
             }
           }
-        }
+        },
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted; a viewer’s may read (GET) but not write."
       },
       "post": {
         "security": [
@@ -3248,7 +3254,8 @@
               }
             }
           }
-        }
+        },
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted; a viewer’s may read (GET) but not write."
       }
     },
     "/ccn/templates/{id}/versions/{version_id}": {
@@ -3395,7 +3402,8 @@
               }
             }
           }
-        }
+        },
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted; a viewer’s may read (GET) but not write."
       }
     },
     "/ccn/templates/{id}/versions/{version_id}/restore": {
@@ -3509,7 +3517,8 @@
               }
             }
           }
-        }
+        },
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted; a viewer’s may read (GET) but not write."
       }
     },
     "/ccn/templates/{id}/detect_fields": {
@@ -3672,7 +3681,8 @@
               }
             }
           }
-        }
+        },
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted; a viewer’s may read (GET) but not write."
       }
     },
     "/templates/{id}": {
@@ -3781,7 +3791,473 @@
             }
           }
         },
-        "x-ccn-extends": "docs/openapi.json#/paths/~1templates~1{id}/put"
+        "x-ccn-extends": "docs/openapi.json#/paths/~1templates~1{id}/put",
+        "x-ccn-role-note": "Account roles (Stage 4): an editor’s token is accepted here; a viewer’s answers 403."
+      }
+    },
+    "/ccn/reminders/due": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Reminders"
+        ],
+        "summary": "List the signers due for a reminder",
+        "description": "The signers whose next reminder is due at this moment, oldest request first, with the stage each would receive. Read-only: nothing is sent and no event is recorded. Signers who are *not* due are not listed and no reason is given for them.",
+        "operationId": "listDueReminders",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "submitter_id": {
+                            "type": "integer",
+                            "description": "The signer due for a reminder."
+                          },
+                          "submission_id": {
+                            "type": "integer",
+                            "description": "Their submission."
+                          },
+                          "email": {
+                            "type": "string",
+                            "description": "The address the reminder would go to."
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "description": "The signer's name, when known."
+                          },
+                          "stage": {
+                            "type": "integer",
+                            "description": "Which of the three reminders is due (1, 2 or 3): the number already sent plus one."
+                          },
+                          "due_at": {
+                            "type": "string",
+                            "description": "When this stage fell due: sent_at + the configured duration. A stage more than 7 days past due is never sent and is not listed."
+                          }
+                        },
+                        "required": [
+                          "submitter_id",
+                          "submission_id",
+                          "email",
+                          "stage",
+                          "due_at"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "submitter_id": 42,
+                      "submission_id": 17,
+                      "email": "signer@example.org",
+                      "name": "Marie Dupont",
+                      "stage": 1,
+                      "due_at": "2026-09-16T09:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "dry_run must be true or false"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/reminders/run": {
+      "post": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Reminders"
+        ],
+        "summary": "Run the reminders once, now",
+        "description": "Executes one reminder sweep immediately, as the scheduler does every 15 minutes when `CCN_REMINDERS_ENABLED=true`. At most one reminder per signer per run and at most `CCN_REMINDERS_MAX_PER_RUN` (default 50) in total, oldest first. `dry_run: true` reports the same counters without sending anything or recording any event. A concurrent run answers `locked: true` and sends nothing.",
+        "operationId": "runReminders",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dry_run": {
+                    "type": "boolean",
+                    "description": "Count what would be sent without sending it. Anything other than a boolean (or its usual spellings) is refused with a 422 rather than guessed: on an endpoint that e-mails people, a typo must not choose the mode."
+                  }
+                }
+              },
+              "example": {
+                "dry_run": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sent": {
+                      "type": "integer",
+                      "description": "Reminders delivered by this run (0 on a dry run)."
+                    },
+                    "skipped": {
+                      "type": "object",
+                      "description": "Reason => count for the signers this run did not write to, e.g. `no_email_delivery_configured` (the account has no working SMTP) or `invalid_email`."
+                    },
+                    "locked": {
+                      "type": "boolean",
+                      "description": "true when another run held the lock: this call sent nothing and the scheduler will pick the signers up on its next tick."
+                    },
+                    "disabled": {
+                      "type": "boolean",
+                      "description": "true when the account has no reminder duration configured, so there is nothing to send."
+                    }
+                  },
+                  "required": [
+                    "sent",
+                    "skipped",
+                    "locked",
+                    "disabled"
+                  ]
+                },
+                "example": {
+                  "sent": 1,
+                  "skipped": {
+                    "no_email_delivery_configured": 2
+                  },
+                  "locked": false,
+                  "disabled": false
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "dry_run must be true or false"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ccn/account_logo": {
+      "get": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Account"
+        ],
+        "summary": "Get the account's logo",
+        "description": "Describes the logo shown to signers on the signing page and in their e-mails. 404 when the account has none, in which case those pages and e-mails carry the DocuSeal mark. The DocuSeal attribution in the page and e-mail footers is present either way.",
+        "operationId": "getAccountLogo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "Absolute URL of the stored image. Readable without a session (that is what lets an e-mail client fetch it), so treat it as public."
+                    },
+                    "filename": {
+                      "type": "string",
+                      "description": "Stored file name."
+                    },
+                    "content_type": {
+                      "type": "string",
+                      "description": "image/png, image/jpeg or image/webp."
+                    },
+                    "byte_size": {
+                      "type": "integer",
+                      "description": "Size in bytes (2 MB maximum)."
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "filename",
+                    "content_type",
+                    "byte_size"
+                  ]
+                },
+                "example": {
+                  "url": "https://docuseal.cheminneuf.community/file/eyJfcmFpbHMi.../logo.png",
+                  "filename": "logo.png",
+                  "content_type": "image/png",
+                  "byte_size": 24680
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No logo is attached to this account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Not found"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "The logo must be a PNG, JPEG or WebP image"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Account"
+        ],
+        "summary": "Set the account's logo",
+        "description": "Stores `file` as the account's logo, replacing any previous one. PNG, JPEG or WebP, 2 MB maximum; the type is checked against the file's own bytes, not its name, and SVG is refused outright. `file` takes the same shapes as the document ingestion endpoints: base64, a data URI, or an https URL the server downloads. Not a multipart upload — every /api request is read as JSON — so use Settings → Personalization to upload a file by hand.",
+        "operationId": "setAccountLogo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "description": "The image as base64, a data URI, or an https URL to download."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Optional file name to store it under; the extension is added from the detected type when it is missing."
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              },
+              "example": {
+                "file": "iVBORw0KGgoAAAANSUhEUgAA...",
+                "name": "chemin-neuf"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "Absolute URL of the stored image. Readable without a session (that is what lets an e-mail client fetch it), so treat it as public."
+                    },
+                    "filename": {
+                      "type": "string",
+                      "description": "Stored file name."
+                    },
+                    "content_type": {
+                      "type": "string",
+                      "description": "image/png, image/jpeg or image/webp."
+                    },
+                    "byte_size": {
+                      "type": "integer",
+                      "description": "Size in bytes (2 MB maximum)."
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "filename",
+                    "content_type",
+                    "byte_size"
+                  ]
+                },
+                "example": {
+                  "url": "https://docuseal.cheminneuf.community/file/eyJfcmFpbHMi.../logo.png",
+                  "filename": "logo.png",
+                  "content_type": "image/png",
+                  "byte_size": 24680
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "The logo must be a PNG, JPEG or WebP image"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "AuthToken": []
+          }
+        ],
+        "tags": [
+          "Account"
+        ],
+        "summary": "Remove the account's logo",
+        "description": "Detaches the logo; the signing page and the e-mails go back to the DocuSeal mark. Answers the same when there was no logo to remove.",
+        "operationId": "deleteAccountLogo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "deleted"
+                  ]
+                },
+                "example": {
+                  "deleted": true
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request was refused; `error` says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "example": {
+                  "error": "Not found"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },

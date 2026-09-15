@@ -35,6 +35,16 @@ curl -s -H "X-Auth-Token: $VIEWER_TOKEN" -X POST "$BASE/submissions" -d '{}' -o 
 curl -s "${H[@]}" -X DELETE "$BASE/ccn/users/$EID"
 curl -s "${H[@]}" -X DELETE "$BASE/ccn/users/$VID"
 
-# Last-admin guard (on the sole admin account used for the gate, expect 422 — do not actually leave the account admin-less)
-curl -s "${H[@]}" -X PUT "$BASE/ccn/users/$SELF_ID" -d '{"role":"editor"}' -o /dev/null -w '%{http_code}\n'  # 422
+# Self guard: the token's own user cannot be demoted or archived through the API at all
+curl -s "${H[@]}" -X PUT "$BASE/ccn/users/$SELF_ID" -d '{"role":"editor"}' | jq -r .error
+# → "You cannot archive yourself or change your own role or two-factor requirement"  (422)
+
+# Last-admin guard. It sits on the User record, so the API's self guard above always answers first: the case
+# it actually prevents is somebody *else* demoting or archiving the last administrator — in practice the
+# `integration` automation account, which holds a token but is not counted as an administrator. There is no
+# way to create such a user through the API (`integration` is not in User::ROLES), so the gate asserts the
+# guard through the runner, where nothing is saved when it fires:
+#   ssh coolify-vm docker exec <container> bundle exec rails runner \
+#     'u = User.find(ID); u.role = "editor"; puts u.save.inspect; puts u.errors.full_messages.inspect'
+# → false, ["At least one administrator must remain on the account"]
 ```

@@ -58,9 +58,9 @@ and release.
 
 ## Phase 6: Documentation
 
-- [ ] T020 `docs/openapi-ccn.json`: 5 new operations (`listDueReminders`, `runReminders`, `getAccountLogo`, `setAccountLogo`, `deleteAccountLogo`) per contracts/README.md, `x-ccn-role-note` on the operations whose 403 behaviour changed with roles
-- [ ] T021 `spec/requests/ccn_openapi_contract_spec.rb` extended: the 5 new operations routable with a conforming 200
-- [ ] T022 [P] `CCN-CHANGES.md`: every file touched in phases 1–5 (Gemfile, initializers, models, `lib/ability.rb`, views, routes) with its reason; quickstart.md verified against the spec examples
+- [x] T020 `docs/openapi-ccn.json`: 5 new operations (`listDueReminders`, `runReminders`, `getAccountLogo`, `setAccountLogo`, `deleteAccountLogo`) per contracts/README.md, `x-ccn-role-note` on the operations whose 403 behaviour changed with roles
+- [x] T021 `spec/requests/ccn_openapi_contract_spec.rb` extended: the 5 new operations routable with a conforming 200
+- [x] T022 [P] `CCN-CHANGES.md`: every file touched in phases 1–5 (Gemfile, initializers, models, `lib/ability.rb`, views, routes) with its reason; quickstart.md verified against the spec examples
 
 ## Phase 7: Bulk list (US4, optional — implement only if phases 1–6 are green and time remains)
 

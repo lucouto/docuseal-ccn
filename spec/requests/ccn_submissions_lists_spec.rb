@@ -22,8 +22,22 @@ describe 'CCN submissions lists' do
          params: { file: upload(content), send_email: }
   end
 
+  def t_max_rows
+    Ccn::SubmissionsLists::MAX_ROWS.to_s
+  end
+
   def payload_from(body)
     body[/name="payload"[^>]*value="([^"]+)"/, 1] || body[/value="([^"]+)"[^>]*name="payload"/, 1]
+  end
+
+  # _list_form.html.erb is the hook upstream renders on the Send page, and nothing else renders it — without
+  # this, a wrong route helper in that partial would only show up as a 500 in front of a user.
+  it 'offers the upload form on the template Send page' do
+    get "/templates/#{template.id}/submissions/new"
+
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("/templates/#{template.id}/submissions_lists/preview")
+    expect(response.body).to include(t_max_rows)
   end
 
   it 'reads the file back before anything is sent' do

@@ -165,5 +165,60 @@ Two things worth carrying forward:
   rolling back a healthy production service. It now retries for two minutes before calling it a failure.
 
 Still owed by hand, none of them automatable: D6 admin login, D7 one real signature request end to end, and
-the one real reminder in a mailbox that staging could never deliver. No CCN logo is attached on the production
-account — signing pages and e-mails there still show the DocuSeal mark.
+the one real reminder in a mailbox that staging could never deliver.
+
+## Post-release defect — the reminder sweep was never scheduled (found 2026-09-15, fixed in `3.2.4-ccn.6`)
+
+Turning reminders on in production exposed a defect that had shipped in `.5` and had been sitting unnoticed on
+staging for a day: **`config/initializers/zz_ccn_reminders.rb` guarded the registration with
+`Sidekiq.server?`**, which reads `defined?(Sidekiq::CLI)`. This image never loads the CLI — Sidekiq runs
+**embedded inside Puma** (`lib/puma/plugin/sidekiq_embed.rb` → `Sidekiq.configure_embed`; `ps` in the
+container shows puma and nothing else). So the guard was false in every process and the schedule was
+installed nowhere. Evidence, not inference: with `CCN_REMINDERS_ENABLED=true` on staging since the day
+before, `Sidekiq::Cron::Job.all` read from Redis was `[]`.
+
+The sweep therefore only ever ran when someone called `POST /api/ccn/reminders/run` by hand — which is
+exactly what the S4 gate does, which is why the gate passed. **A green gate on the endpoints said nothing
+about the scheduler**, and nothing else was checking it.
+
+Fixed by registering through `Sidekiq.configure_server` + `config.on(:startup)`. That seam works in both
+deployment shapes because **Sidekiq 8 records every `configure_server` block in `@config_blocks` and replays
+them inside `configure_embed`** (read it in the gem: `sidekiq.rb:109`), and `:startup` is fired by the puma
+plugin after it has waited for Redis — which an `after_initialize` at Rails boot could not promise.
+`spec/jobs/ccn_send_submitter_reminders_job_scheduling_spec.rb` covers it with `Sidekiq.server?` stubbed
+**false**, the condition `.5` got wrong.
+
+Worth generalising: **sidekiq-cron's own poller survives embedded mode for the same reason** — the gem does
+its `Sidekiq::Launcher.prepend` inside a `configure_server` block, which gets replayed too. So the poller was
+always there; only the job was missing.
+
+## Post-release defect 2 — reminders chased a viewer (found 2026-09-15 by Luciano, fixed in `3.2.4-ccn.6`)
+
+Turning reminders on meant looking at who production would actually mail, and the single pending recipient
+there turned out to be **in copy, not a signatory**: no field of her own on a letter both signatories had
+already signed. Luciano caught it ("not a signer, but a viewer only, nothing to remind of").
+
+The due rule skipped completed, declined, bounced, opted-out, archived and expired — but never asked whether
+the person had anything to do. **A viewer never reaches `completed_at`, because there is nothing to
+complete**, so they would have been chased at every stage for ever.
+
+Upstream already models exactly this and uses the same word: `Submissions::CreateFromSubmitters
+#assign_submitters_is_viewer` writes `is_viewer` onto any `template_submitters` entry that owns no field, and
+`Submitter#viewer?` reads it (it was already `true` on the production record). `Ccn::Reminders.due_row` now
+returns on `nothing_to_sign?`, which checks that flag first and falls back to counting the submitter's fields
+for submissions created before the flag existed.
+
+Two things this exposed beyond the rule itself:
+
+- **The spec helper was building unrealistic records.** `submitter_sent` gave each submitter a random uuid,
+  matching no `template_submitters` entry and therefore no field — which is not how DocuSeal builds them (see
+  the `:with_submitters` trait). Every reminder example had been asserting against a shape that cannot occur.
+  It now takes the submission's own uuid, and `viewer_sent` covers the new case flagged and unflagged.
+- **The S4 gate now creates a viewer** and asserts it is never listed as due, next to the new sidekiq-cron
+  assertion. The two ways this feature can quietly misbehave — mailing the wrong person, or scheduling
+  nobody at all — are now both gated.
+
+Consequence worth knowing: **production currently has nobody to remind.** Submission 4 is fully signed bar
+the viewer, and the only other pending submitter is declined and archived. Switching the schedule on is a
+no-op today, which is correct — and it means the "one real reminder in a mailbox" item stays open until a
+genuine unsigned document is outstanding.

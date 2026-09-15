@@ -1,1 +1,27 @@
-<%= render 'shared/ccn_not_yet' %>
+<div class="space-y-4">
+  <% unless Ccn::AccountLogo.email_host_configured? %>
+    <div class="alert">
+      <%= svg_icon('info_circle', class: 'w-6 h-6') %>
+      <span><%= t('ccn_logo_missing_app_url') %></span>
+    </div>
+  <% end %>
+  <% if current_account.logo.attached? %>
+    <div class="flex items-center justify-between gap-4 bg-base-200 rounded-2xl p-4">
+      <%= image_tag ActiveStorage::Blob.proxy_path(current_account.logo.blob), alt: current_account.name, class: 'max-h-16 max-w-xs object-contain' %>
+      <%= button_to settings_personalization_logo_path, method: :delete, class: 'btn btn-outline btn-error btn-sm', data: { turbo_confirm: t('are_you_sure_') } do %>
+        <%= t('remove') %>
+      <% end %>
+    </div>
+  <% end %>
+  <%= form_with url: settings_personalization_logo_path, method: :post, html: { autocomplete: 'off', class: 'space-y-4', enctype: 'multipart/form-data' } do |f| %>
+    <div class="form-control">
+      <%= f.file_field :file, accept: Ccn::AccountLogo::CONTENT_TYPES.join(','), required: true, class: 'file-input file-input-bordered w-full' %>
+      <label class="label">
+        <span class="label-text-alt"><%= t('ccn_logo_hint', max: Ccn::AccountLogo::MAX_BYTES / 1.megabyte) %></span>
+      </label>
+    </div>
+    <div class="form-control pt-2">
+      <%= f.button button_title(title: t('save'), disabled_with: t('saving')), class: 'base-button' %>
+    </div>
+  <% end %>
+</div>

@@ -79,6 +79,10 @@ Rails.application.routes.draw do
       # Stage 4, US1 (specs/003-p1-features)
       get 'reminders/due', to: 'ccn_reminders#due'
       post 'reminders/run', to: 'ccn_reminders#run'
+      # Stage 4, US2 (specs/003-p1-features)
+      get 'account_logo', to: 'ccn_account_logo#show'
+      put 'account_logo', to: 'ccn_account_logo#update'
+      delete 'account_logo', to: 'ccn_account_logo#destroy'
     end
     resources :tools, only: %i[] do
       post :merge, on: :collection
@@ -245,6 +249,8 @@ Rails.application.routes.draw do
     resources :integration_users, only: %i[index], path: 'users/:status', controller: 'users',
                                   defaults: { status: :integration }
     resource :personalization, only: %i[show create], controller: 'personalization_settings'
+    # CCN fork — Stage 4, US2 (specs/003-p1-features): the account logo's upload/removal form.
+    resource :personalization_logo, only: %i[create destroy], controller: 'ccn_account_logos'
     resources :webhooks, only: %i[index show new create update destroy], controller: 'webhook_settings' do
       post :resend
 

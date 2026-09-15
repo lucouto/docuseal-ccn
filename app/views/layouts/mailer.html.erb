@@ -6,6 +6,8 @@
     <style></style>
   </head>
   <body dir="<%= TextUtils.rtl?(yield) ? 'rtl' : 'auto' %>">
+    <%# CCN fork: the account's logo above the text when it has one (specs/003-p1-features, US2) %>
+    <%= render partial: 'shared/ccn_mailer_logo' %>
     <%= yield %>
     <%= render partial: 'shared/mailer_attribution' %>
   </body>

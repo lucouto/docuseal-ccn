@@ -1,0 +1,9 @@
+<%# CCN fork — Stage 4, US2 (specs/003-p1-features): the account's logo in place of the DocuSeal mark on the
+    pages a signer sees. Drop-in for `render 'shared/logo'`; the DocuSeal attribution in the footer
+    (shared/_attribution) is never touched, which is what keeps AGPL §7(b) satisfied. %>
+<% ccn_account = local_assigns[:account] || Ccn::AccountLogo.account_for(@submitter, @submission, @template) %>
+<% if ccn_account&.logo&.attached? %>
+  <%= image_tag ActiveStorage::Blob.proxy_path(ccn_account.logo.blob), alt: ccn_account.name, class: local_assigns.fetch(:logo_class, 'max-h-12 max-w-xs object-contain') %>
+<% else %>
+  <%= render 'shared/logo', **local_assigns.except(:account, :logo_class) %>
+<% end %>

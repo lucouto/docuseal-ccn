@@ -1,0 +1,9 @@
+<%# CCN fork — Stage 4, US2 (specs/003-p1-features): the account's logo above the text of every e-mail the
+    instance sends. Absolute URL (an inbox has no session and no relative base) and nothing at all when the
+    instance does not know its own URL — a missing logo, never a broken image. The "Sent using DocuSeal"
+    attribution below (shared/_email_attribution) is never touched. %>
+<% if @current_account&.logo&.attached? && Ccn::AccountLogo.email_host_configured? %>
+  <p>
+    <%= image_tag ActiveStorage::Blob.proxy_url(@current_account.logo.blob), alt: @current_account.name, height: 48, style: 'max-height: 48px; width: auto;' %>
+  </p>
+<% end %>

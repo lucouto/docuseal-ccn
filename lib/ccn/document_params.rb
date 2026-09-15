@@ -41,10 +41,22 @@ module Ccn
       end
     end
 
-    def decode(source, index)
+    # Single-file variant of `files_from`, for an endpoint whose payload is one named key rather than a
+    # `documents[]` array (Stage 4: /api/ccn/account_logo). Same accepted shapes, messages named after the key.
+    def file_from(source, param:, name: nil)
+      source = source.to_s.strip
+
+      raise Invalid, "#{param} is required" if source.blank?
+
+      data, filename = source.match?(URL_REGEXP) ? download(source) : [decode(source, nil, param:), nil]
+
+      build_uploaded_file(data, name.presence || filename.presence || param)
+    end
+
+    def decode(source, index, param: nil)
       Base64.strict_decode64(source.sub(DATA_URI_REGEXP, '').gsub(/\s/, ''))
     rescue ArgumentError
-      raise Invalid, "documents[#{index}][file] is not valid base64 (or an https URL)"
+      raise Invalid, "#{param || "documents[#{index}][file]"} is not valid base64 (or an https URL)"
     end
 
     # Unreachable, slow, malformed or not a URL at all → Invalid with a translated reason, raised where the

@@ -18,6 +18,8 @@
 #  index_accounts_on_uuid  (uuid) UNIQUE
 #
 class Account < ApplicationRecord
+  include Ccn::AccountLogo # CCN fork: has_one_attached :logo + its validation (specs/003-p1-features, US2)
+
   attribute :uuid, :string, default: -> { SecureRandom.uuid }
 
   has_many :users, dependent: :destroy

@@ -54,6 +54,9 @@ en:
   ccn_last_admin_required: 'At least one administrator must remain on the account'
   ccn_logo_invalid_type: 'The logo must be a PNG, JPEG or WebP image'
   ccn_logo_too_large: 'The logo must be at most %{max} MB'
+  ccn_logo_hint: 'PNG, JPEG or WebP, %{max} MB maximum. Shown to signers on the signing page and in their e-mails; the DocuSeal attribution stays in the footer.'
+  ccn_logo_missing_app_url: 'Set the application URL in Settings → Account: without it the logo cannot be shown in e-mails.'
+  ccn_logo_file_required: 'Choose an image file to upload'
 fr:
   ccn_not_available_yet: Pas encore disponible sur cette instance
   ccn_not_available_yet_hint_html: Cette fonctionnalité DocuSeal Pro est en cours de réimplémentation dans le <a class="link" href="%{url}" target="_blank" rel="noopener">fork CCN</a>.
@@ -108,3 +111,6 @@ fr:
   ccn_last_admin_required: 'Il doit rester au moins un administrateur sur le compte'
   ccn_logo_invalid_type: 'Le logo doit être une image PNG, JPEG ou WebP'
   ccn_logo_too_large: 'Le logo doit peser au plus %{max} Mo'
+  ccn_logo_hint: 'PNG, JPEG ou WebP, %{max} Mo maximum. Affiché aux signataires sur la page de signature et dans leurs e-mails ; l''attribution DocuSeal reste dans le pied de page.'
+  ccn_logo_missing_app_url: 'Renseignez l''URL de l''application dans Paramètres → Compte : sans elle, le logo ne peut pas apparaître dans les e-mails.'
+  ccn_logo_file_required: 'Choisissez un fichier image à téléverser'

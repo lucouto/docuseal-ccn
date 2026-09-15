@@ -69,7 +69,7 @@ and release.
 
 ## Review C (after phase 6, or phases 6–7 if US4 was implemented)
 
-- [ ] T025 Diff-only reviewer on phases 6 (and 7 if implemented); findings fixed; CI green
+- [x] T025 Diff-only reviewer on phases 6 (and 7 if implemented); findings fixed; CI green
 
 ## Phase 8: Gate + release
 

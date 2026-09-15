@@ -13,6 +13,7 @@ class CcnSubmissionsListsController < ApplicationController
 
   load_and_authorize_resource :template
   before_action { authorize!(:create, Submission) }
+  before_action :ensure_template_accepts_a_list
 
   def preview
     @result = Ccn::SubmissionsLists.parse(params[:file], @template)
@@ -42,15 +43,34 @@ class CcnSubmissionsListsController < ApplicationController
 
   private
 
+  # Upstream's Send page refuses an archived template, and only offers the list tab when the template has no
+  # variables schema (there is nowhere to put the variables in a spreadsheet). Both apply here too — reaching
+  # this controller directly must not do what that page would not.
+  def ensure_template_accepts_a_list
+    return redirect_to template_path(@template), alert: I18n.t('template_has_been_archived') if @template.archived_at?
+    return if @template.variables_schema.blank?
+
+    redirect_to new_template_submission_path(@template), alert: I18n.t('ccn_list_not_available')
+  end
+
+  # One transaction for the whole file: FR-010 says a bad file sends nothing, and a failure half way through
+  # (a duplicate address under `validate_unique_submitters`, say) would otherwise leave the earlier rows saved
+  # and marked sent while the person is told the send was refused.
   def create_submissions(submissions_attrs)
     submissions_attrs, _attachments, new_fields =
       Submissions::NormalizeParamUtils.normalize_submissions_params!(submissions_attrs, @template, add_fields: true)
 
-    Submissions.create_from_submitters(
-      template: @template, user: current_user, source: :invite, submitters_order: 'random',
-      submissions_attrs:, new_fields:,
-      params: { 'send_email' => params[:send_email], 'send_completed_email' => true }
-    )
+    Submission.transaction do
+      Submissions.create_from_submitters(
+        # Upstream's `_submitters_order` forces "preserved" for a template that signs in order, and the
+        # checkbox it offers otherwise is checked by default. A list has no checkbox, so it always preserves:
+        # `random` on a sequential template would invite the counter-signatory before the first party has
+        # signed, which the ordinary Send page cannot do.
+        template: @template, user: current_user, source: :invite, submitters_order: 'preserved',
+        submissions_attrs:, new_fields:,
+        params: { 'send_email' => params[:send_email], 'send_completed_email' => true }
+      )
+    end
   end
 
   def sign(submissions_attrs)

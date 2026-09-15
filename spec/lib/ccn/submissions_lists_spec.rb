@@ -18,6 +18,10 @@ describe Ccn::SubmissionsLists do
     ActionDispatch::Http::UploadedFile.new(tempfile:, filename:, type: content_type)
   end
 
+  def xlsx_type
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  end
+
   def xlsx_upload(rows)
     workbook = RubyXL::Workbook.new
     sheet = workbook[0]
@@ -25,8 +29,7 @@ describe Ccn::SubmissionsLists do
       row.each_with_index { |value, c| sheet.add_cell(r, c, value) }
     end
 
-    upload(workbook.stream.string, 'list.xlsx',
-           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    upload(workbook.stream.string, 'list.xlsx', xlsx_type)
   end
 
   it 'reads a CSV into one submission per row' do
@@ -65,6 +68,57 @@ describe Ccn::SubmissionsLists do
     result = described_class.parse(upload("email\n\n\nnot-an-email\n"), template)
 
     expect(result['errors']).to eq([{ 'line' => 4, 'error' => '"not-an-email" is not an e-mail address' }])
+  end
+
+  # What Excel actually writes. A French Windows exports `;`, and "CSV UTF-8" adds a byte-order mark; either
+  # one used to fail with "the first row must name an email column" on a file that plainly has one.
+  it 'reads a semicolon-delimited CSV' do
+    result = described_class.parse(upload("email;name\na@example.org;A\n"), template)
+
+    expect(result['errors']).to be_empty
+    expect(result['submissions_attrs'].first[:submitters].first).to include(email: 'a@example.org', name: 'A')
+  end
+
+  it 'reads a CSV that starts with a byte-order mark' do
+    result = described_class.parse(upload("\xEF\xBB\xBFemail,name\na@example.org,A\n"), template)
+
+    expect(result['columns'].first).to eq('email')
+    expect(result['errors']).to be_empty
+  end
+
+  it 'reads a cp1252 CSV without mangling the accents' do
+    csv = "email,name\na@example.org,Pr\xE9nom\n".dup.force_encoding(Encoding::BINARY)
+
+    result = described_class.parse(upload(csv), template)
+
+    expect(result['errors']).to be_empty
+    expect(result['submissions_attrs'].first[:submitters].first[:name]).to eq('Prénom')
+  end
+
+  it 'keeps the first of two columns with the same header' do
+    result = described_class.parse(upload("email,name,email\na@example.org,A,b@example.org\n"), template)
+
+    expect(result['errors']).to be_empty
+    expect(result['preview'].first).to eq({ 'email' => 'a@example.org', 'name' => 'A' })
+    expect(result['submissions_attrs'].first[:submitters].first[:email]).to eq('a@example.org')
+  end
+
+  # A .xlsx is a zip: the upload cap is on the compressed bytes and says nothing about what rubyXL would
+  # build in memory.
+  it 'refuses an XLSX that would expand out of proportion, before parsing it' do
+    bomb = Zip::OutputStream.write_buffer(StringIO.new) do |zip|
+      zip.put_next_entry('xl/worksheets/sheet1.xml')
+      zip.write('<row/>' * 12_000_000)
+    end
+
+    expect(bomb.string.bytesize).to be < described_class::MAX_BYTES
+    expect { described_class.parse(upload(bomb.string, 'list.xlsx', xlsx_type), template) }
+      .to raise_error(described_class::Invalid, /at most/)
+  end
+
+  it 'refuses something that is not a file at all' do
+    expect { described_class.parse('list.csv', template) }
+      .to raise_error(described_class::Invalid, 'Choose a CSV or XLSX file to upload')
   end
 
   it 'refuses a file without an email column' do

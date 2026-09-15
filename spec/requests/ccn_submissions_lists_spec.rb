@@ -117,6 +117,57 @@ describe 'CCN submissions lists' do
     expect(flash[:alert]).to eq('This list is no longer available — upload the file again')
   end
 
+  # Upstream's Send page forces "preserve order" for a template that signs in order and offers it checked
+  # otherwise; a list has no checkbox, so it always preserves. `random` would invite the counter-signatory
+  # before the first party had signed.
+  it 'creates submissions that sign in order' do
+    preview("email\na@example.org\n")
+
+    post "/templates/#{template.id}/submissions_lists", params: { payload: payload_from(response.body) }
+
+    expect(Submission.last.submitters_order).to eq('preserved')
+  end
+
+  it 'refuses an archived template, as the Send page does' do
+    template.update!(archived_at: Time.current)
+
+    expect { preview("email\na@example.org\n") }.not_to change(Submission, :count)
+
+    expect(response).to redirect_to(template_path(template))
+    expect(flash[:alert]).to eq(I18n.t('template_has_been_archived'))
+  end
+
+  it 'refuses a template whose fields come from variables, which a list cannot fill' do
+    template.update!(variables_schema: { 'amount' => { 'type' => 'string' } })
+
+    expect { preview("email\na@example.org\n") }.not_to change(Submission, :count)
+
+    expect(response).to redirect_to(new_template_submission_path(template))
+    expect(flash[:alert]).to eq('This template uses variables, which a list cannot fill in')
+  end
+
+  # FR-010 says a bad file sends nothing. Parsing catches most of it, but a rule that only bites on save —
+  # here, the same address twice on one row of a two-role template — would otherwise leave the earlier rows
+  # saved and marked sent while the person is told the send was refused.
+  it 'creates nothing at all when a row fails on save' do
+    two_role = create(:template, account:, author:, submitter_count: 2, only_field_types: %w[text])
+    two_role.update!(preferences: two_role.preferences.merge('validate_unique_submitters' => true))
+    first, second = two_role.submitters.pluck('name')
+
+    post "/templates/#{two_role.id}/submissions_lists/preview",
+         params: { file: upload("#{first}: email,#{second}: email\na@example.org,b@example.org\n" \
+                                "c@example.org,c@example.org\n") }
+    payload = payload_from(response.body)
+    expect(payload).to be_present
+
+    expect do
+      post "/templates/#{two_role.id}/submissions_lists", params: { payload: }
+    end.not_to change(Submission, :count)
+
+    expect(response).to redirect_to(template_path(two_role))
+    expect(flash[:alert]).to be_present
+  end
+
   it 'refuses a viewer' do
     sign_in(create(:user, account:, role: 'viewer'))
 

@@ -91,6 +91,50 @@ private ops folder and is not part of this diff.
    upstream: is any touched upstream file missing a row? The Gemfile and routes.rb rows were merged into
    existing ones — confirm the merge did not lose what the old row said.
 
+## Review C outcome (2026-09-15)
+
+Review C ran and returned **two HIGH, six MEDIUM and six LOW** findings, and verified clean the things this
+brief was least sure of: the `68ad5225` line-numbering fix (re-derived against CSV and rubyXL, including an
+XLSX with empty rows), the `fe15a860` correction about `archived_at`, the blast radius of `cannot :create,
+User` (a `cannot :create` rule is *not relevant* to `can?(:manage, …)`, so the profile page and the token
+pages are untouched), and the signed payload itself — uuids and field uuids can only ever come from *this*
+template's roles and *prefillable* fields, which is narrower than the ordinary Send form, not wider.
+
+**Both HIGH findings are fixed**, and both were real:
+
+- `Ccn::SubmissionsLists.read_xlsx` parsed the workbook before any row cap applied, and the 5 MB upload cap
+  is on the *compressed* zip. Row XML deflates at better than 200:1, so a 5 MB `.xlsx` could become tens of
+  millions of `RubyXL::Cell` objects and take the Puma worker down — reachable by any signed-in editor,
+  repeatedly. The declared uncompressed size of the zip is now checked (40 MB) before rubyXL is handed the
+  buffer, with a spec that builds such a file.
+- `CcnSubmissionsListsController` hardcoded `submitters_order: 'random'`, while upstream's
+  `_submitters_order` partial *forces* `preserve_order` for a template that signs in order. On a two-party
+  contract sent through the list, the counter-signatory would have been invited before the first party
+  signed — the one thing the list could do that the ordinary Send page cannot. It now always preserves.
+
+**MEDIUM — fixed.** The archived-template and `variables_schema` guards upstream's Send page applies are now
+applied here too; the creation runs in one transaction, so a rule that only bites on save (a duplicate
+address across roles under `validate_unique_submitters`) no longer leaves earlier rows saved and marked sent
+while the person is told the send was refused; the CSV reader strips a byte-order mark, sniffs `;` and tab as
+well as `,`, and falls back to cp1252 when the bytes are not valid UTF-8 — between them, Excel's "CSV UTF-8"
+and a French Windows' default export, which were the two likeliest shapes of the first file anyone uploads.
+`runReminders.sent` is documented correctly (on a dry run it is what *would* be sent, not 0);
+`CCN-CHANGES.md` gained the missing `send_submission_email_controller.rb` row plus the phase 7 files, and its
+two stale rows (the hook partials, the routes) are current.
+
+**LOW — fixed.** A repeated header keeps its first column rather than half-overwriting the preview; a `file`
+param that is not a file answers the intended message instead of a 500; `_role_select` adds the user's own
+role to the list when it is not one of the three, so an `integration` account is not silently offered as
+admin; the "does not promote an editor" spec no longer passes `role:` (it tested nothing against the old
+partial); the three `422` examples an endpoint cannot produce are replaced; `data-model.md`'s folders line
+now matches the code.
+
+**Recorded, not changed.** The payload stays replayable for its hour: burning a nonce needs a store shared
+across a browser's tabs, and the exposure — Back, then clicking Send a second time — is bounded by the same
+hour and visible to the person doing it. Worth revisiting if the feature is used at scale. Likewise the
+nitpicks: `ccn_list_send` has no plural form, and a role whose name contains a colon or differs from another
+only by case cannot be addressed by a column prefix.
+
 ## What NOT to flag
 
 - **No preview of a valid file beyond the first five rows**, and no column re-mapping UI — `PREVIEW_ROWS` is

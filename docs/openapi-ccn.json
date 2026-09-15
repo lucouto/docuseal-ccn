@@ -3879,7 +3879,7 @@
             }
           },
           "422": {
-            "description": "The request was refused; `error` says why.",
+            "description": "The request was refused; `error` says why. (This operation takes no parameters, so a refusal here is an authorization or account problem.)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3894,7 +3894,7 @@
                   ]
                 },
                 "example": {
-                  "error": "dry_run must be true or false"
+                  "error": "Not authorized"
                 }
               }
             }
@@ -3944,7 +3944,7 @@
                   "properties": {
                     "sent": {
                       "type": "integer",
-                      "description": "Reminders delivered by this run (0 on a dry run)."
+                      "description": "Reminders delivered by this run. On a dry run this is what *would* be delivered — the same count, without sending anything."
                     },
                     "skipped": {
                       "type": "object",
@@ -4077,7 +4077,7 @@
             }
           },
           "422": {
-            "description": "The request was refused; `error` says why.",
+            "description": "The request was refused; `error` says why. (A missing logo is the 404 above, not this.)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4092,7 +4092,7 @@
                   ]
                 },
                 "example": {
-                  "error": "The logo must be a PNG, JPEG or WebP image"
+                  "error": "Not found"
                 }
               }
             }
@@ -4237,7 +4237,7 @@
             }
           },
           "422": {
-            "description": "The request was refused; `error` says why.",
+            "description": "The request was refused; `error` says why. (Removing a logo that is not there is not a refusal — it answers 200.)",
             "content": {
               "application/json": {
                 "schema": {
@@ -4252,7 +4252,7 @@
                   ]
                 },
                 "example": {
-                  "error": "Not found"
+                  "error": "Not authorized"
                 }
               }
             }

@@ -215,13 +215,25 @@ describe 'CCN roles' do
       expect(response.body).not_to match(/<option selected(="selected")? value="admin"|<option value="admin" selected/)
     end
 
+    # No `role` in the params: this is the form being submitted with whatever the select carried, which is
+    # the case the block form broke. Sending role: 'editor' here would pass against the old partial too.
     it 'does not promote an editor when only their name is edited' do
       sign_in(admin)
       editor_id = editor.id
 
-      put "/users/#{editor_id}", params: { user: { first_name: 'Marie', role: 'editor' } }
+      put "/users/#{editor_id}", params: { user: { first_name: 'Marie' } }
 
       expect(User.find(editor_id).role).to eq('editor')
+      expect(User.find(editor_id).first_name).to eq('Marie')
+    end
+
+    it 'keeps the integration account out of the three roles, and selected' do
+      integration = create(:user, account:, role: 'integration')
+      sign_in(admin)
+
+      get "/users/#{integration.id}/edit"
+
+      expect(response.body).to match(/<option selected(="selected")? value="integration"|value="integration" selected/)
     end
 
     it 'lets an editor see the list without the means to change it' do

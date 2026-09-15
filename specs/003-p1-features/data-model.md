@@ -74,8 +74,11 @@ module Ccn::AccountLogo
   end
 end
 ```
-Accepted: `image/png`, `image/jpeg`, `image/webp`, both by the declared `content_type` **and** by
-`Marcel::MimeType.for(io)` (magic bytes) — a mismatch is refused; ≤ 2 MB; SVG refused unconditionally.
+Accepted: `image/png`, `image/jpeg`, `image/webp` by `Marcel::MimeType.for(io)` (magic bytes, read with no
+filename hint), and the declared `content_type` must not *contradict* them — a declared type naming a
+different type is refused, while a generic one (blank, `application/octet-stream`) is taken at its bytes,
+because some file managers send that for a perfectly good PNG. ≤ 2 MB; SVG refused unconditionally (it reads
+as `application/xml` whatever the browser claims, which is what stops an SVG renamed `.png`).
 
 | Operation | Input | Rules |
 |-----------|-------|-------|
@@ -117,7 +120,7 @@ so a non-admin can still archive themselves. Left as it is: it locks them out, a
 and no privilege is gained. Archiving or editing *somebody else* is refused, which is the rule that matters.
 
 Effect on `/api/ccn/...` (no controller change — `authorize!` already reads these rules): `users`,
-`webhooks`, `account_configs` → 403 for editor and viewer; `template_folders` → editor yes, viewer read-only;
+`webhooks`, `account_configs` → 403 for editor and viewer; `template_folders` → editor yes, viewer **403 on every action, listing included** (one `authorize!(:manage, TemplateFolder)` covers the whole namespace; a viewer still sees each template's folder through `GET /templates`);
 `Api::CcnTemplate*` (versions, detect_fields) and template preferences → editor yes (`:update`), viewer
 read-only (`:read`); ingestion endpoints (`/api/templates/*`, `/api/submissions/*`) → editor yes, viewer no
 (create/update actions require `:create`/`:update`, which viewer lacks).

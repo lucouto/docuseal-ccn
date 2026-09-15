@@ -102,6 +102,7 @@ module Ccn
 
     def due_row(submitter, durations, now)
       return if submitter.template&.archived_at.present?
+      return if nothing_to_sign?(submitter)
       return if submitter.preferences['send_email'] == false
       return if Submitters.email_bounced_recently?(submitter.email)
 
@@ -117,6 +118,21 @@ module Ccn
 
       { submitter_id: submitter.id, submission_id: submitter.submission_id, email: submitter.email,
         name: submitter.name, stage:, due_at:, submitter: }
+    end
+
+    # A party with no field on the document — upstream's "viewer", flagged as `is_viewer` on
+    # `template_submitters` by Submissions::CreateFromSubmitters#assign_submitters_is_viewer and exposed as
+    # Submitter#viewer?. They are sent the document to read, and they never reach `completed_at` because
+    # there is nothing for them to complete, so every one of them would otherwise be chased at every stage
+    # for ever. The first real case on production was a recipient in copy on a letter both signatories had
+    # already signed. The field count is checked too, for submissions old enough (or created by a path
+    # obscure enough) that `is_viewer` was never written.
+    def nothing_to_sign?(submitter)
+      return true if submitter.viewer?
+
+      fields = submitter.submission.template_fields.presence || submitter.template&.fields
+
+      fields.to_a.none? { |field| field['submitter_uuid'] == submitter.uuid }
     end
 
     def counted(account, now)

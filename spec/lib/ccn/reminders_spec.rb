@@ -25,9 +25,26 @@ describe Ccn::Reminders do
                                     'third_duration' => third }.compact)
   end
 
+  # A real signer's uuid is always one of the submission's template_submitters, which is what gives them
+  # fields to fill — DocuSeal builds them that way (see the :with_submitters trait). A random uuid here would
+  # be a party with nothing to sign, which .due now skips on purpose.
   def submitter_sent(**attrs)
     submission = create(:submission, template:)
-    create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: Faker::Internet.email, **attrs)
+    create(:submitter, submission:, account:, uuid: submission.template_submitters.first['uuid'],
+                       email: Faker::Internet.email, **attrs)
+  end
+
+  # Upstream's "viewer": a party on the document with no field of their own. `is_viewer` is written by
+  # Submissions::CreateFromSubmitters#assign_submitters_is_viewer; pass `flagged: false` for a submission
+  # created before that ran, where only the absence of fields gives it away.
+  def viewer_sent(flagged: true, **attrs)
+    submission = create(:submission, template:)
+    uuid = SecureRandom.uuid
+    entry = { 'name' => 'In copy', 'uuid' => uuid }
+    entry['is_viewer'] = true if flagged
+    submission.update!(template_submitters: submission.template_submitters + [entry])
+
+    create(:submitter, submission:, account:, uuid:, email: Faker::Internet.email, **attrs)
   end
 
   it 'mirrors AccountConfigs::REMINDER_DURATIONS exactly' do
@@ -125,6 +142,23 @@ describe Ccn::Reminders do
 
       expect(rows).to be_empty
       [completed, declined, archived_submission, expired_submission, archived_template].each(&:reload)
+    end
+
+    it 'never chases a viewer — a party with no field has nothing to complete, flagged or not' do
+      configure_durations(first: 'one_hour', second: nil, third: nil)
+      now = Time.current
+      due_at = now - 2.hours
+
+      flagged = viewer_sent(sent_at: due_at)
+      unflagged = viewer_sent(flagged: false, sent_at: due_at)
+      signer = submitter_sent(sent_at: due_at)
+
+      rows = described_class.due(account, now:)
+
+      # A viewer never reaches completed_at, so without this they would be chased at every stage for ever.
+      expect(rows.pluck(:submitter_id)).to eq([signer.id])
+      expect(flagged.reload.completed_at).to be_nil
+      expect(unflagged.reload.completed_at).to be_nil
     end
 
     it 'skips a signer with a blank e-mail, an opted-out preference, or a recent bounce' do

@@ -27,8 +27,8 @@ decision and is *not* part of this stage.
 | Review B | T019 | **done** — 1 HIGH + 6 LOW; 4 fixed, 3 recorded, 1 needs Luciano (see `REVIEW-B-BRIEF.md`) |
 | 6 Documentation | T020–T022 | **done** — CI green (543 examples) on `85213247` |
 | 7 Bulk list (US4, optional) | T023–T024 | **done** — implemented: phases 1–6 were green and budget remained |
-| Review C | T025 | not started |
-| 8 Gate + release | T026–T028 | not started |
+| Review C | T025 | **done** — 2 HIGH + 6 MEDIUM + 6 LOW; all fixed but one, recorded (see `REVIEW-C-BRIEF.md`) |
+| 8 Gate + release | T026–T028 | `staging-s4-check.sh` written (ops folder); tag + deploy + gates next |
 
 ## What the next run must know
 
@@ -90,6 +90,14 @@ decision and is *not* part of this stage.
     columns are called `email` and one would otherwise overwrite the other.
   - A column naming nothing is dropped rather than refused, and the preview shows only the columns that were
     understood — a misspelt header is then visible as a missing column instead of silently ignored.
+- **Review C's two HIGH findings are the ones to remember**, both in the bulk list and both about trusting a
+  file: an `.xlsx` is a zip, so an upload cap says nothing about what a parser will build in memory (row XML
+  deflates at better than 200:1 — a 0.1 MB file declaring 68 MB was measured here); and a feature that
+  creates submissions must take `submitters_order` from the template, because `random` on a sequential
+  template invites the counter-signatory before the first party has signed.
+- **What Excel actually writes** (found by Review C, worth keeping): "CSV UTF-8" starts with a byte-order
+  mark, a French Windows exports `;` rather than `,`, and plain "CSV" on Windows is cp1252. All three used to
+  fail or mangle names here. `Ccn::SubmissionsLists.decode_text`/`delimiter_of` handle them.
 - **Needs validation (Luciano)**:
   - **The S4 gate cannot be closed in full on staging.** `FORK-PLAN.md` §10 asks for "one real reminder in
     Luciano's mailbox from staging", and the constitution forbids exactly that ("staging never e-mails";

@@ -60,6 +60,13 @@ describe Ccn::SubmissionsLists do
     expect(result['submissions_attrs'].first[:submitters].first).to include(email: 'a@example.org', name: 'A')
   end
 
+  # The line number is read by somebody holding the file, so it counts the blank rows they can see.
+  it 'reports the line the row is really on, blank rows included' do
+    result = described_class.parse(upload("email\n\n\nnot-an-email\n"), template)
+
+    expect(result['errors']).to eq([{ 'line' => 4, 'error' => '"not-an-email" is not an e-mail address' }])
+  end
+
   it 'refuses a file without an email column' do
     expect { described_class.parse(upload("name,phone\nA,+33100000000\n"), template) }
       .to raise_error(described_class::Invalid, 'The first row must name an "email" column')

@@ -29,7 +29,7 @@ module Ccn
 
       raise Invalid, I18n.t('ccn_list_email_column_required') if columns.none? { |c| c[:attribute] == 'email' }
 
-      rows = body.each_with_index.map { |cells, index| build_row(cells, columns, index + 2) }
+      rows = body.map { |line, cells| build_row(cells, columns, line) }
       errors = rows.flat_map { |row| row[:errors] }.first(MAX_REPORTED_ERRORS)
 
       { 'columns' => header, 'rows_count' => rows.size, 'errors' => errors,
@@ -37,18 +37,23 @@ module Ccn
         'submissions_attrs' => errors.empty? ? rows.pluck(:attrs) : [] }
     end
 
-    # @return [Array(Array<String>, Array<Array>)] the header row and the rows under it, blank rows dropped.
+    # @return [Array(Array<String>, Array<Array(Integer, Array)>)] the header, and the rows under it as
+    #   [line number, cells]. Rows are numbered as the person sees them in their spreadsheet *before* the
+    #   blank ones are dropped: an error is reported to somebody holding that file, and "line 4" has to be
+    #   line 4 even when line 2 was empty.
     def read(file)
       raise Invalid, I18n.t('ccn_list_file_required') if file.blank?
       raise Invalid, I18n.t('ccn_list_too_large', max: MAX_BYTES / 1.megabyte) if file.size.to_i > MAX_BYTES
 
       table = xlsx?(file) ? read_xlsx(file) : read_csv(file)
-      table = table.reject { |row| row.all? { |cell| cell.to_s.strip.blank? } }
+      numbered = table.each_with_index
+                      .map { |cells, index| [index + 1, Array(cells)] }
+                      .reject { |_, cells| cells.all? { |cell| cell.to_s.strip.blank? } }
 
-      raise Invalid, I18n.t('ccn_list_empty') if table.blank?
+      raise Invalid, I18n.t('ccn_list_empty') if numbered.blank?
 
-      header = table.first.map { |cell| cell.to_s.strip }
-      body = table.drop(1)
+      header = numbered.first.last.map { |cell| cell.to_s.strip }
+      body = numbered.drop(1)
 
       raise Invalid, I18n.t('ccn_list_too_many_rows', max: MAX_ROWS) if body.size > MAX_ROWS
 

@@ -7,7 +7,8 @@ describe CcnSubmitterReminderMailer do
   let(:template) { create(:template, account:) }
   let(:submission) { create(:submission, template:) }
   let(:submitter) do
-    create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: 'signer@example.com', sent_at: 1.day.ago)
+    create(:submitter, submission:, account:, email: 'signer@example.com', sent_at: 1.day.ago,
+                       uuid: submission.template_submitters.first['uuid'])
   end
 
   before { create(:user, account:) } # Account#default_template_folder needs an author to assign templates to

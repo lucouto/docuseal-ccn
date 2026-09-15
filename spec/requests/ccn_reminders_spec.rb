@@ -34,8 +34,8 @@ describe 'CCN reminders API' do
     expect(response).to have_http_status(:ok)
 
     submission = create(:submission, template:)
-    submitter = create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: 'signer@example.com',
-                                   sent_at: 2.hours.ago)
+    submitter = create(:submitter, submission:, account:, email: 'signer@example.com',
+                                   uuid: submission.template_submitters.first['uuid'], sent_at: 2.hours.ago)
 
     api :get, '/api/ccn/reminders/due'
 
@@ -53,8 +53,8 @@ describe 'CCN reminders API' do
     api :put, '/api/ccn/account_configs/submitter_reminders', { value: { first_duration: 'one_hour' } }
 
     submission = create(:submission, template:)
-    submitter = create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: 'signer@example.com',
-                                   sent_at: 2.hours.ago)
+    submitter = create(:submitter, submission:, account:, email: 'signer@example.com',
+                                   uuid: submission.template_submitters.first['uuid'], sent_at: 2.hours.ago)
 
     api :post, '/api/ccn/reminders/run', { dry_run: true }
 
@@ -66,8 +66,8 @@ describe 'CCN reminders API' do
     api :put, '/api/ccn/account_configs/submitter_reminders', { value: { first_duration: 'one_hour' } }
 
     submission = create(:submission, template:)
-    submitter = create(:submitter, submission:, account:, uuid: SecureRandom.uuid, email: 'signer@example.com',
-                                   sent_at: 2.hours.ago)
+    submitter = create(:submitter, submission:, account:, email: 'signer@example.com',
+                                   uuid: submission.template_submitters.first['uuid'], sent_at: 2.hours.ago)
 
     api :post, '/api/ccn/reminders/run', { dry_run: 'banana' }
 

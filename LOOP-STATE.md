@@ -126,9 +126,16 @@ Two bugs in the **gate script itself** were found by running it, both of which w
     the real delivery to "after promotion to production, or on staging if Luciano configures SMTP to his own
     mailbox". Everything else in the S4 gate runs; the delivered e-mail is covered by the mailer spec only.
     Luciano's call: point staging SMTP at his own mailbox for one run, or accept the deferral to promotion.
-  - `start_form/_docuseal_logo` keeps upstream's `<h1 class="text-5xl">DocuSeal</h1>` next to the account's
-    logo (research D8: the logo replaces the mark, not the wordmark). "CCN logo + DocuSeal" at that size is a
-    branding call, not an engineering one. The §7(b) attribution is the footer and is untouched either way.
   - US4's *visual* flow (the Upload list tab, the preview page) has request-spec coverage end to end but has
     never been opened in a browser — no way to run the app on this machine. Worth one manual pass on staging.
+- **Settled by Luciano (2026-09-15)**:
+  - **The start form is fine as it is.** He looked at `/d/:slug` with the CCN logo in place and approved
+    keeping upstream's `<h1 class="text-5xl">DocuSeal</h1>` beside it — research D8 stands, the logo replaces
+    the mark and not the wordmark. Do not "fix" this later.
+  - **The CCN logo stays on staging.** `ccn-logo-fr-noir-1200.png` from the charte graphique skill (black
+    version, because the signing page is off-white) is uploaded on the staging account. The S4 gate still
+    passes with it: it snapshots an existing logo, uploads its own, and restores the original at the end.
+  - Worth knowing when the same question comes up: the account logo never appears on the app's own pages —
+    the dashboard at `/` keeps the DocuSeal mark by design (spec.md US2 scenario 5). It shows on `/s/:slug`,
+    `/d/:slug` and in e-mails, and nowhere else.
 - **Blocked**: nothing.

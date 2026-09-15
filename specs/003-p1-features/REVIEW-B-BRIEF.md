@@ -164,10 +164,10 @@ the real role, and editing a name leaves the role alone.
   multitenant mode — and the per-render `EncryptedConfig` query is one indexed row.
 - `UserMailer`'s staff invitations now carry the account logo too, because the layout is the single render
   point. Broader than spec.md scenario 3, which names submitter e-mails; judged defensible.
-- **Needs Luciano**: `start_form/_docuseal_logo` keeps upstream's `<h1 class="text-5xl">DocuSeal</h1>` next to
-  the account's logo, per research D8 (the logo replaces the *mark*, not the wordmark). "CCN logo + DocuSeal"
-  at that size is a branding judgment, not an engineering one. The AGPL §7(b) attribution is the footer and
-  is untouched either way.
+- `start_form/_docuseal_logo` keeps upstream's `<h1 class="text-5xl">DocuSeal</h1>` next to the account's
+  logo, per research D8 (the logo replaces the *mark*, not the wordmark). Raised as a branding question for
+  Luciano; **he looked at it on staging with the CCN logo in place on 2026-09-15 and approved it as it is.**
+  Settled, not open.
 
 ## What NOT to flag
 

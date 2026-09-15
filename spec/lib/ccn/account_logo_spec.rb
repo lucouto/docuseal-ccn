@@ -77,11 +77,23 @@ describe Ccn::AccountLogo do
     expect(account.reload.logo).not_to be_attached
   end
 
-  it 'refuses a PNG whose declared type is something else' do
+  it 'refuses a PNG whose declared type names a different type' do
     attach(png_bytes, 'logo.png', 'application/pdf')
 
     expect(account.errors.full_messages).to eq(['The logo must be a PNG, JPEG or WebP image'])
     expect(account.reload.logo).not_to be_attached
+  end
+
+  # A client that claims nothing in particular is not claiming something *wrong*: some file managers send
+  # application/octet-stream for a perfectly good PNG, and the magic bytes are what decide anyway.
+  it 'accepts a real image whose declared type is generic' do
+    ['application/octet-stream', ''].each do |declared|
+      account.logo.purge if account.logo.attached?
+      attach(png_bytes, 'logo.png', declared)
+
+      expect(account.errors.full_messages).to be_empty
+      expect(account.reload.logo).to be_attached
+    end
   end
 
   it 'leaves the uploaded bytes readable for storage after reading the magic bytes' do

@@ -200,7 +200,28 @@ describe 'CCN roles' do
 
       get '/users/new'
 
-      expect(response.body).to include('<option value="editor">').and include('<option value="viewer">')
+      expect(response.body).to include('value="editor"').and include('value="viewer"')
+    end
+
+    # The select used to be built from a block, which reaches options_for_select as a String and comes back
+    # untouched — no option was ever marked selected, so the form always showed Admin, and saving an editor's
+    # surname saved them back as an administrator.
+    it 'shows each user their real role, not the first option' do
+      sign_in(admin)
+
+      get "/users/#{editor.id}/edit"
+
+      expect(response.body).to match(/<option selected(="selected")? value="editor"|<option value="editor" selected/)
+      expect(response.body).not_to match(/<option selected(="selected")? value="admin"|<option value="admin" selected/)
+    end
+
+    it 'does not promote an editor when only their name is edited' do
+      sign_in(admin)
+      editor_id = editor.id
+
+      put "/users/#{editor_id}", params: { user: { first_name: 'Marie', role: 'editor' } }
+
+      expect(User.find(editor_id).role).to eq('editor')
     end
 
     it 'lets an editor see the list without the means to change it' do
@@ -209,6 +230,28 @@ describe 'CCN roles' do
       get '/settings/users'
 
       expect(response).to have_http_status(:ok)
+    end
+
+    # `manage` on their own record carries `:create`, which UsersController reads as "may administer users":
+    # it is what permits archived_at on an update and what shows the "Add user" button.
+    it 'does not let a viewer archive themselves out of the instance' do
+      viewer_id = viewer.id
+      sign_in(viewer)
+
+      put "/users/#{viewer_id}", params: { user: { archived_at: Time.current.iso8601 } }
+
+      expect(User.find(viewer_id).archived_at).to be_nil
+    end
+
+    it 'still lets an administrator invite a user' do
+      sign_in(admin)
+
+      expect do
+        post '/users', params: { user: { email: 'new@example.com', first_name: 'New', last_name: 'User',
+                                         role: 'editor' } }
+      end.to change(User, :count).by(1)
+
+      expect(User.order(:id).last.role).to eq('editor')
     end
   end
 end

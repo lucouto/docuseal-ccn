@@ -105,9 +105,14 @@ User::ROLES = %w[admin editor viewer].freeze   # ADMIN_ROLE = 'admin' unchanged
 |----------|-------|--------|--------|
 | Template, TemplateFolder | manage | create/read/update/destroy | read |
 | Submission, Submitter | manage | manage (account-scoped) | read |
-| User | manage | read (list), update self | read (list), update self |
+| User | manage | read (list), manage self *minus* `:create` | read (list), manage self *minus* `:create` |
 | Account, AccountConfig, WebhookUrl | manage | — | — |
 | own UserConfig/EncryptedUserConfig/AccessToken/McpToken/`:mcp` | manage | manage | manage |
+
+`manage self` rather than `update self` because `ProfileController` asks for `manage` on the user themselves.
+`:create` is then taken back from the two non-admin roles, because `UsersController` reads `can?(:create, user)`
+as "may administer users": it is what permits `archived_at` on an update (a viewer could otherwise archive
+themselves out of the instance) and what shows the "Add user" button.
 
 Effect on `/api/ccn/...` (no controller change — `authorize!` already reads these rules): `users`,
 `webhooks`, `account_configs` → 403 for editor and viewer; `template_folders` → editor yes, viewer read-only;

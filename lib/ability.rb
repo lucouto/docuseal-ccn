@@ -50,6 +50,7 @@ class Ability
     can :read, User, account_id: user.account_id
 
     own_records_rules(user)
+    cannot_administer_users
   end
 
   # Read-only: open templates and submissions, download signed documents, change nothing anywhere.
@@ -64,6 +65,7 @@ class Ability
     can :read, User, account_id: user.account_id
 
     own_records_rules(user)
+    cannot_administer_users
   end
 
   # Their own profile, signature, API token and MCP token, whatever their role — ProfileController asks for
@@ -76,5 +78,14 @@ class Ability
     can :manage, McpToken, user_id: user.id
 
     can :manage, :mcp
+  end
+
+  # `manage` on their own record is what ProfileController asks for, and it carries `:create` with it —
+  # which UsersController reads as "may administer users", both to permit `archived_at` on an update (so a
+  # viewer could archive themselves out of the instance) and to offer the "Add user" button. An
+  # administrator's own rule grants `:create` on the whole account, so this only ever narrows the two
+  # non-admin roles.
+  def cannot_administer_users
+    cannot :create, User
   end
 end

@@ -52,6 +52,7 @@ describe Ability do
     end
 
     it 'manages the account, its settings, its users and its webhooks' do
+      expect(ability).to be_able_to(:create, User.new(account:))
       expect(ability).to be_able_to(:manage, account)
       expect(ability).to be_able_to(:manage, account_config)
       expect(ability).to be_able_to(:manage, webhook)
@@ -82,6 +83,13 @@ describe Ability do
       expect(ability).not_to be_able_to(:update, colleague)
       expect(ability).not_to be_able_to(:destroy, colleague)
       expect(ability).not_to be_able_to(:create, User.new(account:))
+    end
+
+    # UsersController reads `can?(:create, @user)` as "may administer users" — it is what permits archived_at
+    # on an update and what shows the "Add user" button — so it must not follow from managing oneself.
+    it 'never counts as being allowed to administer users, even on their own record' do
+      expect(ability).not_to be_able_to(:create, user)
+      expect(ability).not_to be_able_to(:create, User)
     end
 
     it 'cannot configure the account' do
@@ -129,6 +137,11 @@ describe Ability do
       expect(ability).not_to be_able_to(:read, webhook)
       expect(ability).not_to be_able_to(:read, smtp_config)
       expect(ability).not_to be_able_to(:create, User.new(account:))
+    end
+
+    it 'never counts as being allowed to administer users, even on their own record' do
+      expect(ability).not_to be_able_to(:create, user)
+      expect(ability).not_to be_able_to(:create, User)
     end
   end
 

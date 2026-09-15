@@ -1,11 +1,10 @@
 <div class="form-control">
   <%= f.label :role, class: 'label' %>
-  <%= f.select :role, nil, {}, class: 'base-select' do %>
-    <%# CCN fork: editor and viewer are implemented here (specs/003-p1-features, US3) %>
-    <option value="admin"><%= t('admin') %></option>
-    <option value="editor"><%= t('editor') %></option>
-    <option value="viewer"><%= t('viewer') %></option>
-  <% end %>
+  <%# CCN fork: editor and viewer are implemented here (specs/003-p1-features, US3). The options are built as
+      a list rather than a block: a block reaches options_for_select as a String, which it returns untouched,
+      so the user's current role would never come back marked selected — and this form permits `role`, so
+      editing an editor's surname would have saved them back as an admin. %>
+  <%= f.select :role, User::ROLES.map { |role| [t(role), role] }, {}, class: 'base-select' %>
   <% if Docuseal.multitenant? %>
     <label class="label">
       <span class="label-text-alt">

@@ -11,10 +11,12 @@ class SendSubmissionEmailController < ApplicationController
 
   def create
     if params[:template_slug]
-      template = Template.find_by!(slug: params[:template_slug])
+      # CCN fork: kept as an ivar so the success page can still find the account when no submitter matched —
+      # without it that page loses the account's logo (specs/003-p1-features, US2).
+      @template = Template.find_by!(slug: params[:template_slug])
 
       @submitter =
-        Submitter.completed.where(submission: template.submissions).find_by(email: params[:email].to_s.downcase)
+        Submitter.completed.where(submission: @template.submissions).find_by(email: params[:email].to_s.downcase)
     elsif params[:submission_slug]
       submission = Submission.find_by!(slug: params[:submission_slug])
 

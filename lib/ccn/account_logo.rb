@@ -10,6 +10,9 @@ module Ccn
     extend ActiveSupport::Concern
 
     CONTENT_TYPES = %w[image/png image/jpeg image/webp].freeze
+    # A client that claims one of these is claiming nothing in particular, so its bytes are taken at face
+    # value rather than treated as a mismatch.
+    GENERIC_TYPES = ['', 'application/octet-stream', 'binary/octet-stream'].freeze
     MAX_BYTES = 2.megabytes
 
     included do
@@ -52,14 +55,15 @@ module Ccn
       errors.add(:base, I18n.t('ccn_logo_too_large', max: MAX_BYTES / 1.megabyte))
     end
 
-    # Both the declared type and the magic bytes must name one of the three accepted images, and they must
-    # agree: an SVG (scripted content in an e-mail client) renamed `.png` and declared `image/png` reads as
-    # application/xml here, whatever the browser said.
+    # The magic bytes decide: an SVG (scripted content in an e-mail client) renamed `.png` and declared
+    # `image/png` reads as application/xml here, whatever the browser said. A declared type that names a
+    # *different* type is refused too, but a client that claims nothing in particular — a blank type, or the
+    # `application/octet-stream` some file managers send for a perfectly good PNG — is taken at its bytes.
     def ccn_validate_logo_type(change)
-      declared = ccn_declared_content_type(change)
+      declared = ccn_declared_content_type(change).to_s
       detected = ccn_detected_content_type(change.attachable)
 
-      return if CONTENT_TYPES.include?(declared) && declared == detected
+      return if CONTENT_TYPES.include?(detected) && (declared == detected || GENERIC_TYPES.include?(declared))
 
       errors.add(:base, I18n.t('ccn_logo_invalid_type'))
     end

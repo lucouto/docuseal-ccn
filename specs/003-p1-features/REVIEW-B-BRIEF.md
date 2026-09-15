@@ -12,16 +12,22 @@ not a restatement of this brief.
 
 ```bash
 cd ~/Projets_apps_github/docuseal-ccn
-git diff 822e77bb..f2a54e47 --stat   # the full file list
-git diff 822e77bb..f2a54e47          # the full diff
+git diff 822e77bb..8e98314b --stat   # the full file list
+git diff 822e77bb..8e98314b          # the full diff
 ```
 
-`822e77bb` is the tip of phase 3 (reminders), already covered by Review A. Three commits are in scope:
+`822e77bb` is the tip of phase 3 (reminders), already covered by Review A. Four commits are in scope:
 
 - `7ff04219` — phase 4, the account logo (US2).
 - `74df2d46` — phase 5, the roles (US3).
 - `f2a54e47` — the CI fix for phase 4 (the API takes no multipart upload; the settings page gained the
   upload request spec instead).
+- `8e98314b` — a one-line spec fix (a lazy `let` meant the template was created by the assertion rather than
+  before the request).
+
+`85213247` (phase 6: `docs/openapi-ccn.json`, `CCN-CHANGES.md`, `quickstart.md`, this brief) is **not** in
+scope as code, but it *documents* the behaviour under review — if the code and that description disagree,
+the code is what you are reviewing and the disagreement is a finding.
 
 **Out of scope**: phases 6–8 (docs, the optional bulk list, gate + release) don't exist yet. Reminders
 (phases 1–3) were reviewed as Review A — only look at them where phase 4/5 changed their behaviour (the
@@ -114,6 +120,50 @@ Spend disproportionate time here rather than spreading evenly across the diff.
    a non-greedy regex and compares two renders. Decide whether that block is really the attribution on every
    page in scope, whether the regex could match something else first, and whether comparing two renders in
    the same example can pass while both are wrong.
+
+## Review B outcome (2026-09-15)
+
+Review B ran and returned one HIGH and six LOW findings, and verified clean every other item this brief had
+singled out (the moved gates — the reviewer swept the whole controller tree and found no second instance —
+the orphan-blob question, the io rewinding, the mailer layout on non-signer mail, the role matrix against the
+real controllers, `decode`'s messages, and the attribution regex). Read this section as superseding the
+items above where they disagree.
+
+**HIGH — fixed.** `app/views/users/_role_select.html.erb`: the select was built from a block, and
+`options_for_select` returns a String container untouched (`form_options_helper.rb:358`), so **no option was
+ever marked `selected`**. The Edit-user form therefore always showed *Admin*, and `UsersController#update`
+permits `role` — so an administrator editing an editor's surname and pressing Save would have promoted them
+to administrator, silently. Latent before this stage (both non-admin options were `disabled`); enabling them
+made it live. The select is now built from `User::ROLES`, and two request specs cover it: the edit form marks
+the real role, and editing a name leaves the role alone.
+
+**LOW — fixed.**
+
+- `lib/ability.rb`: `manage` on one's own record carries `:create`, which `UsersController` reads as "may
+  administer users" — it permits `archived_at` on an update, so a **viewer could archive themselves out of
+  the instance**. `cannot :create, User` is now taken back from the editor and viewer branches only (an
+  administrator's `:create` comes from their account-wide rule, so they are unaffected), with specs both ways.
+- `lib/ccn/account_logo.rb`: requiring `declared == detected` refused a genuine PNG that a file manager
+  declared `application/octet-stream`. The magic bytes were always the real check; a *generic* declared type
+  is now taken at its bytes, while a declared type naming a different type is still refused.
+- `app/controllers/send_submission_email_controller.rb`: in the `template_slug` branch the template was a
+  local, so when no completed submitter matched the typed address the success page had no ivar to resolve the
+  account from and lost the logo. One line: it is an ivar now.
+
+**LOW — recorded, not changed.**
+
+- `Ccn::LastAdminGuard`'s `exists?` takes no lock, so two concurrent demotions of the last two administrators
+  could both pass. Bounded: an `integration` token still resolves to `admin_rules`, so `/api/ccn/users` can
+  restore an administrator. Not worth a lock on a single instance with a dozen users.
+- `Ccn::AccountLogo.email_host_configured?` reads `APP_URL`/`EncryptedConfig` directly, while
+  `Docuseal.default_url_options` short-circuits on `multitenant?`. Unreachable here — the constitution forbids
+  multitenant mode — and the per-render `EncryptedConfig` query is one indexed row.
+- `UserMailer`'s staff invitations now carry the account logo too, because the layout is the single render
+  point. Broader than spec.md scenario 3, which names submitter e-mails; judged defensible.
+- **Needs Luciano**: `start_form/_docuseal_logo` keeps upstream's `<h1 class="text-5xl">DocuSeal</h1>` next to
+  the account's logo, per research D8 (the logo replaces the *mark*, not the wordmark). "CCN logo + DocuSeal"
+  at that size is a branding judgment, not an engineering one. The AGPL §7(b) attribution is the footer and
+  is untouched either way.
 
 ## What NOT to flag
 

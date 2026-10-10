@@ -105,7 +105,7 @@
         href="https://www.docuseal.com/start"
         target="_blank"
         class="underline"
-      >DocuSeal</a> - {{ t('open_source_documents_software') }}
+      >DocuSeal</a>
     </div>
   </div>
 </template>

@@ -238,3 +238,24 @@ Consequence worth knowing: **production currently has nobody to remind.** Submis
 the viewer, and the only other pending submitter is declined and archived. Switching the schedule on is a
 no-op today, which is correct — and it means the "one real reminder in a mailbox" item stays open until a
 genuine unsigned document is outstanding.
+
+## Released — `3.2.4-ccn.7`, staging and production, 2026-10-10
+
+Footers shortened on Luciano's request (commit `9d741e70`). E-mails: upstream's `---` + "Sent using DocuSeal
+open-source software." became one line, "Powered by DocuSeal" (linked). Pages: "Powered by DocuSeal · Source".
+Signing form's completed screen: "Powered by DocuSeal". Luciano asked for "Powered by DocuSeal" alone on the
+pages too; the source link stays, shortened to "Source", because AGPL §13 requires offering the source of a
+modified, network-served program. The §7(b) attribution term covers interactive UIs, which an e-mail is
+arguably not; the e-mail line keeps the DocuSeal link anyway.
+
+`staging-s4-check.sh` (ops repo) asserted the words "open source" in the footer; it now asserts the
+`>DocuSeal</a>` link instead. The rspec attribution specs only check the URLs and needed no change.
+
+| | staging | production |
+|---|---|---|
+| version | `3.2.4-ccn.7` | `3.2.4-ccn.7` |
+| gates | S1 PASS · S1-bounds PASS · S2 27/0 · S3 42/0 · S4 46/0 | D1–D5 + fork smoke + sweep ALL PASS |
+| pre-promotion backup | — | `/var/backups/docuseal/pre-promo-docuseal{,-data}-2026-10-10T134826Z.*` |
+
+Verified by hand: a test mail from production (`prod-test-mail.sh` in the ops repo, now `lucouto/docuseal-ops`,
+private) reached Luciano's Inbox with the CCN logo and the one-line footer rendered as a link.

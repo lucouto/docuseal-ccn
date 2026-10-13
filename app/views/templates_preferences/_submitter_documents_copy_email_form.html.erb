@@ -37,13 +37,21 @@
     <% end %>
   <% end %>
   <%= form_for @template, url: template_preferences_path(@template), method: :post, html: { autocomplete: 'off', class: 'mt-1', id: 'submitter_documents_copy_email_template_form' }, data: { close_on_submit: false } do |f| %>
-    <%= f.fields_for :preferences, Struct.new(:documents_copy_email_enabled, :documents_copy_email_attach_audit, :documents_copy_email_attach_documents).new(@template.preferences['documents_copy_email_enabled'], configs['attach_audit_log'] != false && @template.preferences['documents_copy_email_attach_audit'] != false, configs['attach_documents'] != false && @template.preferences['documents_copy_email_attach_documents'] != false) do |ff| %>
+    <%= f.fields_for :preferences, Struct.new(:documents_copy_email_enabled, :documents_copy_email_attach_audit, :documents_copy_email_attach_documents, :documents_copy_email_attach_files).new(@template.preferences['documents_copy_email_enabled'], configs['attach_audit_log'] != false && @template.preferences['documents_copy_email_attach_audit'] != false, configs['attach_documents'] != false && @template.preferences['documents_copy_email_attach_documents'] != false, @template.preferences['documents_copy_email_attach_files']) do |ff| %>
       <div class="flex items-center justify-between pt-2.5 px-1 mb-2">
         <span>
           <%= t('attach_documents_to_the_email') %>
         </span>
         <submit-form data-on="change" class="flex">
           <%= ff.check_box :documents_copy_email_attach_documents, { checked: ff.object.documents_copy_email_attach_documents != false, class: 'toggle', disabled: configs['attach_documents'] == false }, 'true', 'false' %>
+        </submit-form>
+      </div>
+      <div class="flex items-center justify-between pt-2.5 px-1 mb-2">
+        <span>
+          <%= t('ccn_attach_uploaded_files_to_the_email') %>
+        </span>
+        <submit-form data-on="change" class="flex">
+          <%= ff.check_box :documents_copy_email_attach_files, { checked: ff.object.documents_copy_email_attach_files != false && ff.object.documents_copy_email_attach_documents != false, class: 'toggle', disabled: !ff.object.documents_copy_email_attach_documents }, 'true', 'false' %>
         </submit-form>
       </div>
       <div class="flex items-center justify-between pt-2.5 px-1 mb-2">

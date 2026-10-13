@@ -40,6 +40,16 @@ describe 'CCN template administration API' do
       expect(template.preferences['request_email_subject']).to eq('Merci de signer {{template.name}}')
     end
 
+    it 'stores documents_copy_email_attach_files and keeps the other preferences' do
+      template.update!(preferences: { 'documents_copy_email_subject' => 'Votre copie' })
+
+      api :put, "/api/templates/#{template.id}", { preferences: { documents_copy_email_attach_files: false } }
+
+      expect(response).to have_http_status(:ok)
+      expect(template.reload.preferences).to eq('documents_copy_email_subject' => 'Votre copie',
+                                                'documents_copy_email_attach_files' => false)
+    end
+
     it 'refuses an unknown preference key without changing anything' do
       api :put, "/api/templates/#{template.id}", { preferences: { colour: 'red' } }
 

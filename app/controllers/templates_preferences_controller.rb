@@ -54,9 +54,9 @@ class TemplatesPreferencesController < ApplicationController
       preferences: %i[bcc_completed request_email_subject request_email_body
                       invitation_view_email_subject invitation_view_email_body
                       invitation_reminder_email_subject invitation_reminder_email_body
-                      documents_copy_email_subject documents_copy_email_body
-                      documents_copy_email_enabled documents_copy_email_attach_audit
-                      documents_copy_email_attach_documents documents_copy_email_reply_to
+                      documents_copy_email_subject documents_copy_email_body documents_copy_email_enabled
+                      documents_copy_email_attach_audit documents_copy_email_attach_documents
+                      documents_copy_email_attach_files documents_copy_email_reply_to
                       completed_notification_email_attach_documents completed_redirect_url validate_unique_submitters
                       require_all_submitters submitters_order require_phone_2fa require_email_2fa
                       default_expire_at_duration shared_link_2fa default_expire_at request_email_enabled

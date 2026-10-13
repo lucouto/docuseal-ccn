@@ -6,7 +6,7 @@ describe Ccn::TemplatePreferences do
   let(:template) { create(:template, account:, author: create(:user, account:)) }
 
   it 'mirrors the keys the UI permits' do
-    expect(described_class::KEYS.size).to eq(31) # 28 scalar keys + 3 nested, as TemplatesPreferencesController
+    expect(described_class::KEYS.size).to eq(32) # 29 scalar keys + 3 nested, as TemplatesPreferencesController
     expect(described_class::KEYS).to include('request_email_subject', 'default_expire_at', 'completed_message',
                                              'submitters', 'link_form_fields')
   end

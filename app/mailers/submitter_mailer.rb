@@ -153,7 +153,8 @@ class SubmitterMailer < ApplicationMailer
       with_documents: template_preferences['documents_copy_email_attach_documents'] != false &&
                       (@email_config.nil? || @email_config.value['attach_documents'] != false),
       with_audit_log: template_preferences['documents_copy_email_attach_audit'] != false &&
-                      (@email_config.nil? || @email_config.value['attach_audit_log'] != false)
+                      (@email_config.nil? || @email_config.value['attach_audit_log'] != false),
+      with_files: template_preferences['documents_copy_email_attach_files'] != false
     )
 
     @subject = template_preferences['documents_copy_email_subject'].presence
@@ -206,7 +207,7 @@ class SubmitterMailer < ApplicationMailer
     reply_to
   end
 
-  def add_completed_email_attachments!(submitter, with_audit_log: true, with_documents: true)
+  def add_completed_email_attachments!(submitter, with_audit_log: true, with_documents: true, with_files: true)
     documents = with_documents ? select_completed_documents(submitter) : []
 
     filename_format = AccountConfig.find_or_initialize_by(account_id: submitter.account_id,
@@ -230,7 +231,7 @@ class SubmitterMailer < ApplicationMailer
       attachments[audit_trail_filename.tr('"', "'")] = audit_trail_data
     end
 
-    if with_documents
+    if with_documents && with_files
       file_fields = submitter.submission.template_fields.select { |e| e['type'].in?(%w[file payment]) }
 
       if file_fields.pluck('submitter_uuid').uniq.size == 1

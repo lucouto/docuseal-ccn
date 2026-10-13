@@ -259,3 +259,23 @@ arguably not; the e-mail line keeps the DocuSeal link anyway.
 
 Verified by hand: a test mail from production (`prod-test-mail.sh` in the ops repo, now `lucouto/docuseal-ops`,
 private) reached Luciano's Inbox with the CCN logo and the one-line footer rendered as a link.
+
+## Released — `3.2.4-ccn.8`, staging and production, 2026-10-13
+
+New template preference `documents_copy_email_attach_files` (commit `70ba045b`). `false` keeps the files a signer
+uploaded in `file` fields out of *their* documents-copy e-mail; the signed PDF and audit log stay attached, the
+team's completed notification is untouched, an absent key = upstream behaviour. Asked for the WYD 2027 passport
+photo (templates 8–11). The pre-existing `documents_copy_email_attach_documents: false` dropped the signed PDF too.
+
+| | staging | production |
+|---|---|---|
+| version | `3.2.4-ccn.8` | `3.2.4-ccn.8` |
+| gates | S1 PASS · S1-bounds PASS · S2 27/0 · S3 42/0 · S4 46/0 | D1–D5 + fork smoke + sweep ALL PASS |
+| pre-promotion backup | — | `/var/backups/docuseal/pre-promo-docuseal{,-data}-2026-10-13T144323Z.*` |
+
+CI: 595 examples, 0 failures (591 before; +3 mailer, +1 request). Staging has no completed submission with an
+upload, so the mail was checked with `rails runner` on a submitter given a fake `file` field + attachment inside a
+rolled-back transaction: copy without the key = PDF + audit + file; with `false` = PDF + audit; team mail = all three.
+Production: `PUT /api/templates/{8,9,10,11}` `preferences{documents_copy_email_attach_files:false}`; a full GET diff
+before/after shows that one key added and nothing else (custom subjects/bodies intact).
+Open: one real WYD signature by Luciano → copy e-mail without the passport photo; n8n WF2 Drive upload still runs.

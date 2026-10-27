@@ -21,7 +21,11 @@ module Ccn
 
     # The normalized `"Name" <address>` when the value is one address on an allowed domain, else nil.
     def normalize(value)
-      address = Mail::Address.new(value.to_s.strip)
+      addresses = Mail::AddressList.new(value.to_s.strip).addresses
+
+      return unless addresses.one?
+
+      address = addresses.first
 
       return if address.address.to_s.match(User::EMAIL_REGEXP).to_s != address.address.to_s
       return unless allowed_domains.include?(address.domain.to_s.downcase)

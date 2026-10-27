@@ -20,6 +20,7 @@ describe Ccn::TemplateSender do
     it 'refuses other domains, lists and garbage' do
       expect(described_class.normalize('x@chemin-neuf.org')).to be_nil
       expect(described_class.normalize('a@wyd2027.org, b@wyd2027.org')).to be_nil
+      expect(described_class.normalize('a@wyd2027.org; b@wyd2027.org')).to be_nil
       expect(described_class.normalize('not an address')).to be_nil
       expect(described_class.normalize('<<<')).to be_nil
     end
@@ -58,14 +59,16 @@ describe Ccn::TemplateSender do
 
       ActionMailerConfigsInterceptor.delivering_email(message)
 
-      expect(message[:from].to_s).to eq('"WYD 2027" <contact@wyd2027.org>')
+      expect(message[:from].display_names).to eq(['WYD 2027'])
+      expect(message.from).to eq(['contact@wyd2027.org'])
       expect(message[described_class::HEADER]).to be_nil
     end
 
     it 'keeps SMTP_FROM, with the sender name, when there is no template sender' do
       ActionMailerConfigsInterceptor.delivering_email(message)
 
-      expect(message[:from].to_s).to eq('"Luciano" <docuseal@cheminneuf.community>')
+      expect(message[:from].display_names).to eq(['Luciano'])
+      expect(message.from).to eq(['docuseal@cheminneuf.community'])
     end
 
     it 'ignores a header naming a domain that is not allowed' do

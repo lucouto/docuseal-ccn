@@ -33,7 +33,8 @@ describe SubmitterMailer do
     it 'sends the invitation from it and directs replies to it' do
       mail = described_class.invitation_email(submitter)
 
-      expect(mail[:from].to_s).to eq('"JMJ 2027" <contact@wyd2027.org>')
+      expect(mail[:from].display_names).to eq(['JMJ 2027'])
+      expect(mail.from).to eq(['contact@wyd2027.org'])
       expect(mail.reply_to).to eq(['contact@wyd2027.org'])
       expect(mail[Ccn::TemplateSender::HEADER].to_s).to eq('"JMJ 2027" <contact@wyd2027.org>')
     end

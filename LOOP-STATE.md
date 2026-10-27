@@ -281,3 +281,25 @@ before/after shows that one key added and nothing else (custom subjects/bodies i
 Verified 2026-10-13: Luciano signed a WYD template on production — his copy e-mail had the signed PDF + audit log,
 no passport photo; n8n WF2 execution 512307 succeeded and uploaded the passport to Drive (it reads the file from the
 webhook, not the e-mail).
+
+## Released — `3.2.4-ccn.9`, staging and production, 2026-10-27
+
+Per-template sender (commits after `06f04fd5`): template preference `ccn_from_email` → From of every e-mail about
+that template's submissions (invitation, reminder, copy, completed, declined) and their default Reply-To (account
+config reply_to and submitter reply_to still win; upstream fell back to the request's creator). Domains limited by
+env `CCN_SMTP_FROM_DOMAINS=cheminneuf.community,wyd2027.org` (both Brevo-authenticated, DKIM + SPF). The mailer
+hands the address to `ActionMailerConfigsInterceptor` in an `X-CCN-From` header, which the interceptor always
+strips; it would otherwise overwrite the From with `SMTP_FROM`. Without the preference: `SMTP_FROM`
+(`docuseal@cheminneuf.community`, display name = requester), unchanged. API/MCP only, no UI field.
+
+| | staging | production |
+|---|---|---|
+| version | `3.2.4-ccn.9` | `3.2.4-ccn.9` |
+| gates | S1 PASS · S1-bounds PASS · S2 27/0 · S3 42/0 · S4 46/0 | D1–D5 + fork smoke + sweep ALL PASS |
+| pre-promotion backup | — | `/var/backups/docuseal/pre-promo-docuseal{,-data}-2026-10-27T181407Z.*` |
+
+CI 607/0 (+12). The first CI run caught a real bug: `Mail::Address.new` silently kept the first of a list, so
+`normalize` now requires `Mail::AddressList` to hold exactly one address. Staging: `rails runner` with the env-SMTP
+branch forced in-process → with sender `From=JMJ 2027 <contact@wyd2027.org>`, Reply-To the same, header stripped;
+without, unchanged. Production: templates 8–9 `"JMJ 2027" <contact@wyd2027.org>`, 10–11 `"WYD 2027" <contact@wyd2027.org>`;
+GET diff before/after = that one key. Open: one real WYD invitation in Luciano's inbox (sender, Inbox vs Junk, reply → contact@).

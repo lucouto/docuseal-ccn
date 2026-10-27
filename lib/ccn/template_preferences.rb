@@ -15,7 +15,7 @@ module Ccn
                      require_phone_2fa require_email_2fa default_expire_at_duration shared_link_2fa
                      default_expire_at request_email_enabled completed_notification_email_subject
                      completed_notification_email_body completed_notification_email_enabled
-                     completed_notification_email_attach_audit].freeze
+                     completed_notification_email_attach_audit ccn_from_email].freeze
     NESTED_KEYS = {
       'completed_message' => %w[title body],
       'submitters' => %w[uuid request_email_subject request_email_body],
@@ -83,6 +83,7 @@ module Ccn
       when 'completed_message' then nested_hash(key, value, NESTED_KEYS[key])
       when 'submitters' then nested_list(key, value)
       when 'link_form_fields' then string_list(key, value)
+      when Ccn::TemplateSender::PREFERENCE_KEY then from_email(key, value)
       else scalar(key, value)
       end
     end
@@ -92,6 +93,20 @@ module Ccn
       return value if value.is_a?(String) || value.is_a?(Numeric) || value == true || value == false
 
       raise AdminInvalid, I18n.t('ccn_invalid_preference_value', key:, type: 'string or boolean')
+    end
+
+    # One address on a CCN_SMTP_FROM_DOMAINS domain, stored normalized; '' removes the key.
+    def from_email(key, value)
+      raise AdminInvalid, I18n.t('ccn_invalid_preference_value', key:, type: 'string') unless value.is_a?(String)
+      return value if value.strip.empty?
+
+      normalized = Ccn::TemplateSender.normalize(value)
+
+      return normalized if normalized
+
+      domains = Ccn::TemplateSender.allowed_domains.join(', ').presence || '-'
+
+      raise AdminInvalid, I18n.t('ccn_from_email_not_allowed', value:, domains:)
     end
 
     # As the UI: interpreted in the account's timezone, stored in UTC.

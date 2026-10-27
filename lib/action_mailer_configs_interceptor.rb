@@ -7,6 +7,8 @@ module ActionMailerConfigsInterceptor
   module_function
 
   def delivering_email(message)
+    ccn_from = Ccn::TemplateSender.pop!(message)
+
     return message unless Rails.env.production?
 
     if Docuseal.demo?
@@ -18,7 +20,9 @@ module ActionMailerConfigsInterceptor
     if Rails.env.production? && Rails.application.config.action_mailer.delivery_method
       from = ENV.fetch('SMTP_FROM').to_s.split(',').sample
 
-      if from.match?(User::FULL_EMAIL_REGEXP)
+      if ccn_from
+        message[:from] = ccn_from
+      elsif from.match?(User::FULL_EMAIL_REGEXP)
         message[:from] = message[:from].to_s.sub(User::EMAIL_REGEXP, from)
       else
         message.from = from
@@ -34,6 +38,7 @@ module ActionMailerConfigsInterceptor
         message.delivery_method(:smtp, build_smtp_configs_hash(email_configs))
 
         message.from = %("#{email_configs.account.name.to_s.delete('"')}" <#{email_configs.value['from_email']}>)
+        message[:from] = ccn_from if ccn_from
       else
         message.delivery_method(:test)
       end

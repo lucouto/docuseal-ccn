@@ -196,7 +196,7 @@ class SubmitterMailer < ApplicationMailer
   def build_submitter_reply_to(submitter, email_config: nil, documents_copy_email: nil)
     reply_to = submitter.preferences['reply_to'].presence
     reply_to ||= submitter.template&.preferences&.dig('documents_copy_email_reply_to').presence if documents_copy_email
-    reply_to ||= email_config.value['reply_to'].presence if email_config
+    reply_to ||= Ccn::TemplateSender.reply_to(submitter.template, email_config)
 
     if reply_to.blank? && (submitter.submission.created_by_user || submitter.template.author)&.email != submitter.email
       reply_to = (submitter.submission.created_by_user || submitter.template.author)&.friendly_name&.sub(/\+\w+@/, '@')
@@ -289,7 +289,9 @@ class SubmitterMailer < ApplicationMailer
   end
 
   def from_address_for_submitter(submitter)
-    if submitter.submission.source.in?(%w[api embed]) &&
+    ccn_from = Ccn::TemplateSender.claim!(headers, submitter.template)
+
+    if ccn_from.nil? && submitter.submission.source.in?(%w[api embed]) &&
        (from_email = AccountConfig.find_by(account: submitter.account, key: 'integration_from_email')&.value.presence)
       user = submitter.account.users.find_by(email: from_email)
 
@@ -301,7 +303,7 @@ class SubmitterMailer < ApplicationMailer
 
       put_metadata('from_user_id' => user.id)
 
-      user.friendly_name
+      ccn_from || user.friendly_name
     end
   end
 

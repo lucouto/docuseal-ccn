@@ -50,6 +50,22 @@ describe 'CCN template administration API' do
                                                 'documents_copy_email_attach_files' => false)
     end
 
+    it 'stores ccn_from_email normalized and refuses a domain outside CCN_SMTP_FROM_DOMAINS' do
+      original = ENV.fetch('CCN_SMTP_FROM_DOMAINS', nil)
+      ENV['CCN_SMTP_FROM_DOMAINS'] = 'cheminneuf.community,wyd2027.org'
+
+      api :put, "/api/templates/#{template.id}", { preferences: { ccn_from_email: 'JMJ 2027 <contact@wyd2027.org>' } }
+      expect(response).to have_http_status(:ok)
+      expect(template.reload.preferences['ccn_from_email']).to eq('"JMJ 2027" <contact@wyd2027.org>')
+
+      api :put, "/api/templates/#{template.id}", { preferences: { ccn_from_email: 'me@chemin-neuf.org' } }
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json['error']).to include('me@chemin-neuf.org', 'cheminneuf.community, wyd2027.org')
+      expect(template.reload.preferences['ccn_from_email']).to eq('"JMJ 2027" <contact@wyd2027.org>')
+    ensure
+      ENV['CCN_SMTP_FROM_DOMAINS'] = original
+    end
+
     it 'refuses an unknown preference key without changing anything' do
       api :put, "/api/templates/#{template.id}", { preferences: { colour: 'red' } }
 

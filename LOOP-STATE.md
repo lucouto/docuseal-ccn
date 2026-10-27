@@ -302,4 +302,9 @@ CI 607/0 (+12). The first CI run caught a real bug: `Mail::Address.new` silently
 `normalize` now requires `Mail::AddressList` to hold exactly one address. Staging: `rails runner` with the env-SMTP
 branch forced in-process → with sender `From=JMJ 2027 <contact@wyd2027.org>`, Reply-To the same, header stripped;
 without, unchanged. Production: templates 8–9 `"JMJ 2027" <contact@wyd2027.org>`, 10–11 `"WYD 2027" <contact@wyd2027.org>`;
-GET diff before/after = that one key. Open: one real WYD invitation in Luciano's inbox (sender, Inbox vs Junk, reply → contact@).
+GET diff before/after = that one key. Verified 2026-10-27: test submission 18 (template 8, to Luciano) → invitation arrived in his Inbox from
+"JMJ 2027" <contact@wyd2027.org>, Reply goes to contact@. It arrived twice: the API send at 18:21 UTC plus a
+diagnostic re-send through `rails runner` with `raise_delivery_errors = true` (accepted by SMTP). Lesson: Brevo's
+`/smtp/statistics/events` and `/smtp/emails` listed **neither** message although both were delivered — for this
+sender an empty Brevo log is not evidence of non-delivery; the inbox is. DocuSeal's `send_email` event only proves
+the hand-off (`raise_delivery_errors` is false in production, so an SMTP refusal would also look "sent").
